@@ -24,7 +24,7 @@ export function formatPercent(
     return "—";
   }
 
-  return `${(value * 100).toFixed(digits)}%`;
+  return `${Math.round(value * 100)}%`;
 }
 
 export function formatNumber(

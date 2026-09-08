@@ -2,15 +2,15 @@ import { useRef, useState } from "react";
 import {
   ArrowUpRight,
   Check,
-  FileText,
-  Upload,
+  FileBox,
+  FileSpreadsheet,
+  Fingerprint,
   X,
+  Zap,
 } from "lucide-react";
 
-import type { Report } from "./types";
-
 type UploadWorkspaceProps = {
-  onReport: (report: Report) => void;
+  onReport: (report: any) => void;
   onLogout: () => void;
 };
 
@@ -48,242 +48,257 @@ function UploadWorkspace({
         body: formData,
       });
 
-      const data = await response.json();
+      const result = await response.json();
 
-      if (!response.ok) {
+      if (!response.ok || !result.success) {
         throw new Error(
-          data?.error ||
-            data?.detail ||
-            "The analysis request failed.",
+          result.error || "Autopsy analysis failed."
         );
       }
 
-      if (!data.success || !data.report) {
-        throw new Error(
-          data?.error || "The backend returned no analysis report.",
-        );
-      }
-
-      onReport(data.report as Report);
+      onReport(result.report);
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : "Something went wrong while running the autopsy.",
+          : "Something went wrong while running the autopsy."
       );
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFile = (
-    file: File | undefined,
-    type: "model" | "dataset",
-  ) => {
-    if (!file) return;
+  const removeModel = () => {
+    setModelFile(null);
 
-    if (type === "model") {
-      const valid =
-        file.name.toLowerCase().endsWith(".joblib") ||
-        file.name.toLowerCase().endsWith(".pkl");
-
-      if (!valid) {
-        setError("Model must be a .joblib or .pkl file.");
-        return;
-      }
-
-      setModelFile(file);
-      setError("");
-      return;
+    if (modelInputRef.current) {
+      modelInputRef.current.value = "";
     }
-
-    if (!file.name.toLowerCase().endsWith(".csv")) {
-      setError("Evaluation dataset must be a .csv file.");
-      return;
-    }
-
-    setDatasetFile(file);
-    setError("");
   };
 
-  const handleDrop = (
-    event: React.DragEvent<HTMLDivElement>,
-    type: "model" | "dataset",
-  ) => {
-    event.preventDefault();
-    handleFile(event.dataTransfer.files?.[0], type);
+  const removeDataset = () => {
+    setDatasetFile(null);
+
+    if (datasetInputRef.current) {
+      datasetInputRef.current.value = "";
+    }
   };
 
   return (
-    <main className="workspace-page">
-      <div className="workspace-layout">
-        <section className="workspace-intro">
-          <p className="eyebrow">FORENSIC ML ANALYSIS</p>
+    <div className="workspace-app">
+      <header className="topbar">
+        <button
+          className="brand"
+          type="button"
+          onClick={() => window.location.reload()}
+          aria-label="Model Autopsy home"
+        >
+          <span className="brand-mark">
+            <Fingerprint size={20} strokeWidth={1.5} />
+          </span>
 
-          <h1>
-            Find out
-            <br />
-            <span>why your model</span>
-            <br />
-            fails.
-          </h1>
+          <span className="brand-text">
+            <strong>MODEL</strong>
+            <span>AUTOPSY</span>
+          </span>
+        </button>
 
-          <p className="workspace-description">
-            Model Autopsy investigates a trained machine learning
-            model against unseen labeled data, surfacing the evidence
-            behind its mistakes.
-          </p>
+        <div className="workspace-actions">
+          <div className="engine-status">
+            <i />
+            LOCAL ENGINE
+          </div>
 
-          <div className="workspace-steps">
-            <div className="workspace-step">
-              <FileText size={19} />
-              <span>MODEL</span>
+          <button
+            className="logout-button"
+            type="button"
+            onClick={onLogout}
+          >
+            SIGN OUT
+          </button>
+        </div>
+      </header>
+
+      <main className="workspace">
+        <section className="workspace-heading">
+          <div>
+            <div className="eyebrow">
+              <Fingerprint size={12} />
+              FORENSIC ML ANALYSIS
             </div>
 
-            <div className="workspace-arrow">›</div>
+            <h1>
+                Find out
+                <br />
+                <span className="hero-accent">why your model</span>
+                <br />
+                fails.
+            </h1>
 
-            <div className="workspace-step">
-              <FileText size={19} />
-              <span>EVIDENCE</span>
+            <p>
+                Your model made the mistake.
+                <span className="hero-description-accent">We find the evidence.</span>
+                <br />
+                Upload the model. Expose its failure patterns. Trace what drove them.
+            </p>
+          </div>
+
+          <Zap size={24} />
+        </section>
+
+        <section className="workspace-grid">
+          <div className="workspace-card">
+            <div className="workspace-card-heading">
+              <span className="step-number">01</span>
+
+              <div>
+                <div className="micro-label">
+                  <FileBox size={12} />
+                  MODEL
+                </div>
+
+                <h2>Upload the trained model.</h2>
+
+                <p>
+                  Provide a serialized scikit-learn compatible model.
+                </p>
+              </div>
             </div>
 
-            <div className="workspace-arrow">›</div>
+            <label className="workspace-dropzone">
+              <input
+                ref={modelInputRef}
+                type="file"
+                accept=".joblib,.pkl"
+                onChange={(event) =>
+                  setModelFile(event.target.files?.[0] ?? null)
+                }
+              />
 
-            <div className="workspace-step workspace-step-active">
-              <Check size={19} />
-              <span>AUTOPSY</span>
+              <div className="drop-icon">
+                {modelFile ? (
+                  <Check size={18} />
+                ) : (
+                  <FileBox size={18} />
+                )}
+              </div>
+
+              <div className="drop-copy">
+                <strong>
+                  {modelFile
+                    ? modelFile.name
+                    : "Choose model artifact"}
+                </strong>
+
+                <span>
+                  {modelFile
+                    ? "Model ready for analysis"
+                    : ".joblib or .pkl"}
+                </span>
+              </div>
+
+              {modelFile && (
+                <button
+                  className="remove-file"
+                  type="button"
+                  aria-label="Remove model"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    removeModel();
+                  }}
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </label>
+          </div>
+
+          <div className="workspace-card">
+            <div className="workspace-card-heading">
+              <span className="step-number">02</span>
+
+              <div>
+                <div className="micro-label">
+                  <FileSpreadsheet size={12} />
+                  EVIDENCE
+                </div>
+
+                <h2>Upload evaluation data.</h2>
+
+                <p>
+                  Use unseen labeled data to expose model failures.
+                </p>
+              </div>
             </div>
+
+            <label className="workspace-dropzone">
+              <input
+                ref={datasetInputRef}
+                type="file"
+                accept=".csv"
+                onChange={(event) =>
+                  setDatasetFile(event.target.files?.[0] ?? null)
+                }
+              />
+
+              <div className="drop-icon">
+                {datasetFile ? (
+                  <Check size={18} />
+                ) : (
+                  <FileSpreadsheet size={18} />
+                )}
+              </div>
+
+              <div className="drop-copy">
+                <strong>
+                  {datasetFile
+                    ? datasetFile.name
+                    : "Choose evaluation dataset"}
+                </strong>
+
+                <span>
+                  {datasetFile
+                    ? "Evaluation set ready"
+                    : "Labeled .csv file"}
+                </span>
+              </div>
+
+              {datasetFile && (
+                <button
+                  className="remove-file"
+                  type="button"
+                  aria-label="Remove dataset"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    removeDataset();
+                  }}
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </label>
           </div>
         </section>
 
-        <section className="upload-workspace">
-          <div className="workspace-heading">
-            <div>
-              <p className="eyebrow">START INVESTIGATION</p>
-              <h2>Open an autopsy.</h2>
+        <section className="configuration-card">
+          <div>
+            <div className="micro-label">
+              <Fingerprint size={12} />
+              AUTOPSY
             </div>
 
-            <div className="workspace-icon">
-              <Upload size={20} strokeWidth={1.7} />
-            </div>
+            <h2>Configure the investigation.</h2>
           </div>
 
-          <div className="upload-divider" />
-
-          <div
-            className="upload-card"
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => handleDrop(event, "model")}
-          >
-            <input
-              ref={modelInputRef}
-              type="file"
-              accept=".joblib,.pkl"
-              hidden
-              onChange={(event) =>
-                handleFile(event.target.files?.[0], "model")
-              }
-            />
-
-            <div className="upload-card-icon">
-              {modelFile ? (
-                <Check size={18} />
-              ) : (
-                <Upload size={18} />
-              )}
-            </div>
-
-            <div className="upload-card-content">
-              <strong>
-                {modelFile ? modelFile.name : "Model artifact"}
-              </strong>
-
-              <span>
-                {modelFile
-                  ? "Model ready for analysis"
-                  : ".joblib or .pkl"}
-              </span>
-            </div>
-
-            {modelFile ? (
-              <button
-                className="file-remove"
-                type="button"
-                onClick={() => setModelFile(null)}
-                aria-label="Remove model"
-              >
-                <X size={16} />
-              </button>
-            ) : (
-              <button
-                className="file-action"
-                type="button"
-                onClick={() => modelInputRef.current?.click()}
-              >
-                Choose
-              </button>
-            )}
-          </div>
-
-          <div
-            className="upload-card"
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => handleDrop(event, "dataset")}
-          >
-            <input
-              ref={datasetInputRef}
-              type="file"
-              accept=".csv"
-              hidden
-              onChange={(event) =>
-                handleFile(event.target.files?.[0], "dataset")
-              }
-            />
-
-            <div className="upload-card-icon">
-              {datasetFile ? (
-                <Check size={18} />
-              ) : (
-                <FileText size={18} />
-              )}
-            </div>
-
-            <div className="upload-card-content">
-              <strong>
-                {datasetFile ? datasetFile.name : "Evaluation dataset"}
-              </strong>
-
-              <span>
-                {datasetFile
-                  ? "Evaluation set ready"
-                  : "Labeled .csv file"}
-              </span>
-            </div>
-
-            {datasetFile ? (
-              <button
-                className="file-remove"
-                type="button"
-                onClick={() => setDatasetFile(null)}
-                aria-label="Remove dataset"
-              >
-                <X size={16} />
-              </button>
-            ) : (
-              <button
-                className="file-action"
-                type="button"
-                onClick={() => datasetInputRef.current?.click()}
-              >
-                Choose
-              </button>
-            )}
-          </div>
-
-          <label className="target-field">
-            <span>TARGET COLUMN</span>
+          <div className="target-control">
+            <label htmlFor="target-column">
+              TARGET COLUMN
+            </label>
 
             <input
+              id="target-column"
               type="text"
               value={targetColumn}
               onChange={(event) =>
@@ -291,32 +306,16 @@ function UploadWorkspace({
               }
               placeholder="e.g. approved"
             />
-          </label>
+          </div>
+        </section>
 
-          {error && (
-            <div className="workspace-error">
-              {error}
-            </div>
-          )}
+        {error && (
+          <div className="workspace-error">
+            {error}
+          </div>
+        )}
 
-          <button
-            className="run-autopsy-button"
-            type="button"
-            disabled={
-              !modelFile ||
-              !datasetFile ||
-              !targetColumn.trim() ||
-              loading
-            }
-            onClick={runAutopsy}
-          >
-            <span>
-              {loading ? "ANALYZING..." : "RUN AUTOPSY"}
-            </span>
-
-            <ArrowUpRight size={18} />
-          </button>
-
+        <div className="workspace-footer">
           <div className="workspace-meta">
             <span>PRIVATE</span>
             <span>LOCAL</span>
@@ -324,16 +323,30 @@ function UploadWorkspace({
           </div>
 
           <button
-            className="workspace-logout"
+            className="primary-button workspace-run"
             type="button"
-            onClick={onLogout}
+            disabled={
+              loading ||
+              !modelFile ||
+              !datasetFile ||
+              !targetColumn.trim()
+            }
+            onClick={runAutopsy}
           >
-            Sign out
+            {loading ? (
+              "RUNNING AUTOPSY..."
+            ) : (
+              <>
+                RUN AUTOPSY
+                <ArrowUpRight size={15} />
+              </>
+            )}
           </button>
-        </section>
-      </div>
-    </main>
+        </div>
+      </main>
+    </div>
   );
 }
 
 export default UploadWorkspace;
+

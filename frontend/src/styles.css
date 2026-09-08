@@ -1,11 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 :root {
   font-family:
-    Inter,
+    "DM Sans",
     ui-sans-serif,
     system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
     sans-serif;
 
   color: #edf1f3;
@@ -2362,5 +2360,823 @@ button:disabled {
 
   .cf-arrow {
     transform: rotate(90deg);
+  }
+}
+
+/* =========================================================
+   MODEL AUTOPSY — REFINED VISUAL SYSTEM
+   ========================================================= */
+
+:root {
+  --bg: #07090b;
+  --surface: #0b0f12;
+  --surface-2: #0e1316;
+  --surface-3: #12181c;
+
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  --text: #f1f4f3;
+  --muted: #7f8b90;
+  --dim: #4c585e;
+
+  --green: #52dfab;
+  --green-soft: rgba(82, 223, 171, 0.10);
+  --green-border: rgba(82, 223, 171, 0.28);
+
+  --red: #ff7070;
+  --yellow: #e4c466;
+}
+
+
+/* =========================================================
+   GLOBAL TYPOGRAPHY
+   ========================================================= */
+
+body {
+  font-family: "Space Grotesk", sans-serif;
+  letter-spacing: -0.01em;
+}
+
+button,
+input {
+  font-family: "Space Grotesk", sans-serif;
+}
+
+code,
+pre,
+.metric-label,
+.eyebrow,
+.micro-label,
+.section-eyebrow,
+.step-number,
+.engine-status,
+.analysis-status,
+.workspace-meta,
+.auth-field > span,
+.health-caption {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+
+/* =========================================================
+   BRAND
+   ========================================================= */
+
+.brand-text {
+  letter-spacing: 0.10em;
+}
+
+.brand-text strong {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.brand-text span {
+  color: var(--green);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+}
+
+
+/* =========================================================
+   TOPBAR
+   ========================================================= */
+
+.topbar,
+.report-topbar {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.075);
+}
+
+.engine-status,
+.analysis-status {
+  color: #6f7c82;
+}
+
+.engine-status i,
+.analysis-status i {
+  width: 6px;
+  height: 6px;
+  background: var(--green);
+
+  box-shadow:
+    0 0 0 3px rgba(82, 223, 171, 0.06),
+    0 0 12px rgba(82, 223, 171, 0.55);
+}
+
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+.primary-button {
+  background: var(--green);
+  border: 1px solid var(--green);
+
+  color: #06110c;
+
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+}
+
+.primary-button:hover:not(:disabled) {
+  background: #69e8b8;
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 10px 28px rgba(82, 223, 171, 0.16);
+}
+
+.primary-button:disabled {
+  opacity: 0.45;
+}
+
+.secondary-button,
+.new-autopsy-button,
+.logout-button {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+
+/* =========================================================
+   WORKSPACE HERO
+   ========================================================= */
+
+.workspace-heading h1 {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(48px, 5.2vw, 68px);
+  font-weight: 500;
+
+  letter-spacing: -0.065em;
+  line-height: 0.94;
+
+  color: #f1f4f3;
+}
+
+.workspace-heading p {
+  max-width: 670px;
+
+  color: #748087;
+
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.eyebrow,
+.micro-label,
+.section-eyebrow {
+  color: #68767d;
+
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+}
+
+
+/* =========================================================
+   WORKSPACE CARDS
+   ========================================================= */
+
+.workspace-card,
+.configuration-card {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.018),
+      transparent 45%
+    ),
+    var(--surface);
+
+  border-color: rgba(255, 255, 255, 0.085);
+
+  transition:
+    border-color 180ms ease,
+    background 180ms ease;
+}
+
+.workspace-card:hover,
+.configuration-card:hover {
+  border-color: rgba(255, 255, 255, 0.13);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(82, 223, 171, 0.025),
+      transparent 42%
+    ),
+    var(--surface);
+}
+
+.workspace-card-heading h2,
+.configuration-card h2 {
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+
+.workspace-card-heading p {
+  color: #68757c;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.step-number {
+  color: #56636a;
+  font-size: 9px;
+}
+
+
+/* =========================================================
+   DROP ZONES
+   ========================================================= */
+
+.workspace-dropzone {
+  border-color: rgba(255, 255, 255, 0.10);
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.012),
+      transparent
+    );
+
+  transition:
+    border-color 180ms ease,
+    background 180ms ease;
+}
+
+.workspace-dropzone:hover {
+  border-color: var(--green-border);
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(82, 223, 171, 0.045),
+      rgba(255, 255, 255, 0.01)
+    );
+}
+
+.drop-icon {
+  color: #69767d;
+}
+
+.workspace-dropzone:hover .drop-icon {
+  color: var(--green);
+}
+
+.drop-copy strong {
+  color: #dce3e2;
+}
+
+.drop-copy span {
+  color: #536067;
+}
+
+
+/* =========================================================
+   TARGET INPUT
+   ========================================================= */
+
+.target-control input {
+  border-color: rgba(255, 255, 255, 0.10);
+
+  background: #080b0d;
+
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.target-control input:focus {
+  outline: none;
+
+  border-color: var(--green-border);
+
+  box-shadow:
+    0 0 0 3px rgba(82, 223, 171, 0.045);
+}
+
+
+/* =========================================================
+   REPORT HERO
+   ========================================================= */
+
+.report-identity h1 {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.065em;
+}
+
+.report-meta,
+.report-meta strong {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+
+/* =========================================================
+   HEALTH SCORE
+   ========================================================= */
+
+.health-value strong {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 88px;
+  font-weight: 500;
+
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.075em;
+}
+
+.health-denominator {
+  margin-left: 1px;
+
+  color: #566269;
+
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.health-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.health-block.healthy .health-value strong {
+  color: var(--green);
+
+  text-shadow:
+    0 0 24px rgba(82, 223, 171, 0.12);
+}
+
+.health-block.watch .health-value strong {
+  color: #bcebd8;
+}
+
+.health-block.risk .health-value strong {
+  color: var(--yellow);
+}
+
+.health-block.critical .health-value strong {
+  color: var(--red);
+}
+
+
+/* =========================================================
+   METRICS
+   ========================================================= */
+
+.metric-card {
+  min-height: 185px;
+  padding: 29px 27px 25px;
+}
+
+.metric-label {
+  color: #617077;
+
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+}
+
+.metric-value {
+  margin-top: 22px;
+
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 39px;
+  font-weight: 500;
+
+  letter-spacing: -0.055em;
+  line-height: 1;
+
+  font-variant-numeric: tabular-nums;
+
+  color: #e9eeed;
+}
+
+
+/* =========================================================
+   FINDINGS
+   ========================================================= */
+
+.finding-card,
+.feature-card,
+.case-card,
+.counterfactual-card {
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.finding-card:hover,
+.feature-card:hover,
+.case-card:hover,
+.counterfactual-card:hover {
+  border-color: rgba(255, 255, 255, 0.13);
+}
+
+.finding-severity.critical {
+  color: var(--red);
+}
+
+.finding-severity.warning,
+.finding-severity.risk {
+  color: var(--yellow);
+}
+
+.finding-severity.info {
+  color: var(--green);
+}
+
+
+/* =========================================================
+   FEATURE IMPORTANCE
+   ========================================================= */
+
+.feature-bar {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.feature-bar-fill {
+  background: var(--green);
+
+  box-shadow:
+    0 0 12px rgba(82, 223, 171, 0.18);
+}
+
+.feature-name {
+  color: #d9e0df;
+
+  font-size: 12px;
+  font-weight: 500;
+}
+
+
+/* =========================================================
+   REPRESENTATIVE CASE
+   ========================================================= */
+
+.case-prediction,
+.prediction-value {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.case-prediction.correct {
+  color: var(--green);
+}
+
+.case-prediction.incorrect {
+  color: var(--red);
+}
+
+
+/* =========================================================
+   COUNTERFACTUAL
+   ========================================================= */
+
+.cf-change {
+  background: rgba(82, 223, 171, 0.025);
+  border-color: rgba(82, 223, 171, 0.10);
+}
+
+.cf-value.new {
+  color: var(--green);
+}
+
+.cf-arrow {
+  color: var(--green);
+}
+
+
+/* =========================================================
+   LOGIN
+   ========================================================= */
+
+.auth-page {
+  background:
+    radial-gradient(
+      circle at 50% 35%,
+      rgba(82, 223, 171, 0.045),
+      transparent 35%
+    ),
+    var(--bg);
+}
+
+.auth-card {
+  border-color: rgba(255, 255, 255, 0.10);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.025),
+      transparent 55%
+    ),
+    var(--surface);
+
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.28);
+}
+
+.auth-heading h1 {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 32px;
+  font-weight: 500;
+  letter-spacing: -0.045em;
+}
+
+.auth-field > span {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.auth-field input {
+  font-family: "Space Grotesk", sans-serif;
+
+  border-color: rgba(255, 255, 255, 0.10);
+
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.auth-field input:focus {
+  border-color: var(--green-border);
+
+  box-shadow:
+    0 0 0 3px rgba(82, 223, 171, 0.045);
+}
+
+
+/* =========================================================
+   SUBTLE TECHNICAL DETAILS
+   ========================================================= */
+
+.workspace-mark {
+  border-color: rgba(255, 255, 255, 0.08);
+
+  color: #56636a;
+
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.workspace-mark:hover {
+  color: var(--green);
+
+  border-color: var(--green-border);
+
+  background: rgba(82, 223, 171, 0.025);
+}
+
+
+/* =========================================================
+   FILE STATUS
+   ========================================================= */
+
+.workspace-dropzone .file-name,
+.workspace-dropzone .selected-file {
+  color: var(--green);
+}
+
+
+/* =========================================================
+   SELECTION
+   ========================================================= */
+
+::selection {
+  background: rgba(82, 223, 171, 0.22);
+  color: #f1f4f3;
+}
+
+
+/* =========================================================
+   RESPONSIVE TYPOGRAPHY
+   ========================================================= */
+
+@media (max-width: 760px) {
+  .workspace-heading h1 {
+    font-size: 46px;
+  }
+
+  .health-value strong {
+    font-size: 72px;
+  }
+
+  .metric-value {
+    font-size: 34px;
+  }
+}
+
+.hero-accent {
+  color: var(--green);
+  text-shadow: 0 0 30px rgba(82, 223, 171, 0.08);
+}
+
+.hero-description-accent {
+  color: #c9d4d0;
+  margin-left: 5px;
+}
+.workspace-mark {
+  display: none !important;
+}
+
+/* =========================================================
+   FINAL ANALYSIS CONFIGURATION
+   ========================================================= */
+
+.configuration-card {
+  margin-top: 14px;
+  min-height: 150px;
+
+  padding: 30px 32px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  border: 1px solid rgba(255, 255, 255, 0.10);
+
+  background:
+    linear-gradient(
+      110deg,
+      rgba(82, 223, 171, 0.035),
+      transparent 42%
+    ),
+    var(--surface);
+}
+
+.configuration-card > div:first-child {
+  flex: 1;
+}
+
+.configuration-card h2 {
+  margin: 7px 0 6px;
+
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+
+.configuration-card p {
+  margin: 0;
+
+  color: #69767d;
+  font-size: 11px;
+}
+
+
+/* Target input */
+
+.target-control {
+  width: 360px;
+}
+
+.target-control label {
+  color: #64737a;
+
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+}
+
+.target-control input {
+  height: 47px;
+
+  border: 1px solid rgba(255, 255, 255, 0.12);
+
+  background: #080b0d;
+
+  color: #dce5e1;
+
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.target-control input:focus {
+  border-color: rgba(82, 223, 171, 0.42);
+
+  box-shadow:
+    0 0 0 3px rgba(82, 223, 171, 0.055);
+
+  outline: none;
+}
+
+
+/* =========================================================
+   RUN AUTOPSY — MAKE IT THE CTA
+   ========================================================= */
+
+.workspace-footer {
+  margin-top: 18px;
+
+  min-height: 72px;
+
+  padding: 0 2px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.workspace-meta {
+  color: #536067;
+}
+
+.workspace-run {
+  width: 230px;
+}
+
+.workspace-run.primary-button {
+  min-height: 52px;
+
+  background: var(--green);
+  border-color: var(--green);
+
+  color: #06110c;
+
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+
+  box-shadow:
+    0 0 0 rgba(82, 223, 171, 0);
+}
+
+.workspace-run.primary-button:hover:not(:disabled) {
+  background: #69e8b8;
+
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 14px 35px rgba(82, 223, 171, 0.15);
+}
+
+
+/* =========================================================
+   EXECUTION STATE
+   ========================================================= */
+
+.configuration-card::after {
+  content: "READY FOR ANALYSIS";
+
+  align-self: flex-start;
+
+  margin-left: 28px;
+
+  color: rgba(82, 223, 171, 0.55);
+
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 7px;
+  font-weight: 500;
+
+  letter-spacing: 0.14em;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 760px) {
+  .configuration-card {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 25px;
+  }
+
+  .target-control {
+    width: 100%;
+  }
+
+  .configuration-card::after {
+    display: none;
+  }
+
+  .workspace-footer {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .workspace-run {
+    width: 100%;
   }
 }
