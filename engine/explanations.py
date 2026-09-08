@@ -2,67 +2,101 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import shap
+
+
+def _normalise_shap_values(
+    shap_values: Any,
+    n_samples: int,
+    n_features: int,
+) -> np.ndarray:
+    if isinstance(shap_values, list):
+        if len(shap_values) == 2:
+            values = np.asarray(shap_values[1])
+        else:
+            values = np.asarray(shap_values[0])
+    else:
+        values = np.asarray(shap_values)
+
+        if values.ndim == 3:
+            values = values[:, :, -1]
+
+    if values.ndim != 2:
+        raise ValueError(f"Unexpected SHAP output shape: {values.shape}")
+
+    if values.shape == (n_features, n_samples):
+        values = values.T
+
+    if values.shape != (n_samples, n_features):
+        raise ValueError(
+            f"Unexpected SHAP matrix shape: {values.shape}; "
+            f"expected {(n_samples, n_features)}"
+        )
+
+    return values
+
+
+def _get_shap_values(explainer: Any, X: pd.DataFrame) -> Any:
+    try:
+        return explainer.shap_values(X)
+    except Exception:
+        return explainer.shap_values(
+            X,
+            check_additivity=False,
+        )
 
 
 def global_explanation(
     model: Any,
     X: pd.DataFrame,
 ) -> dict:
+    feature_names = list(X.columns)
+
     try:
-        import shap
+        explainer = shap.TreeExplainer(model)
+        raw_values = _get_shap_values(explainer, X)
 
-        sample = X
-
-        if len(sample) > 500:
-            sample = sample.sample(
-                500,
-                random_state=42,
-            )
-
-        explainer = shap.Explainer(
-            model,
-            sample,
+        values = _normalise_shap_values(
+            raw_values,
+            len(X),
+            len(feature_names),
         )
 
-        values = explainer(sample)
-
-        raw = np.asarray(values.values)
-
-        if raw.ndim == 3:
-            importance = np.abs(raw).mean(
-                axis=(0, 2)
-            )
-        elif raw.ndim == 2:
-            importance = np.abs(raw).mean(axis=0)
-        else:
-            importance = np.abs(raw)
-
-        ranking = [
-            {
-                "feature": feature,
-                "importance": float(score),
-            }
-            for feature, score in zip(
-                X.columns,
-                importance,
-            )
-        ]
-
-        ranking.sort(
-            key=lambda item: item["importance"],
-            reverse=True,
-        )
+        importance = np.abs(values).mean(axis=0)
+        order = np.argsort(importance)[::-1]
 
         return {
             "method": "SHAP",
-            "features": ranking,
+            "features": [
+                {
+                    "feature": feature_names[i],
+                    "importance": float(importance[i]),
+                }
+                for i in order
+            ],
         }
 
-    except Exception as exc:
+    except Exception as shap_error:
+        if hasattr(model, "feature_importances_"):
+            importance = np.asarray(model.feature_importances_)
+            order = np.argsort(importance)[::-1]
+
+            return {
+                "method": "model_native",
+                "features": [
+                    {
+                        "feature": feature_names[i],
+                        "importance": float(importance[i]),
+                    }
+                    for i in order
+                ],
+                "warning": f"SHAP unavailable: {shap_error}",
+            }
+
         return {
             "method": "unavailable",
             "features": [],
-            "error": str(exc),
+            "error": str(shap_error),
         }
 
 
@@ -71,95 +105,95 @@ def local_explanation(
     X: pd.DataFrame,
     index: int,
 ) -> dict:
-    row = X.iloc[[index]]
+    """
+    Explain one representative prediction.
+    """
 
-    prediction = model.predict(row)[0]
+    if index < 0 or index >= len(X):
+        raise IndexError(
+            f"Prediction index {index} is out of range."
+        )
 
-    probability = None
+    X_row = X.iloc[[index]]
 
-    if hasattr(model, "predict_proba"):
-        try:
-            probability = float(
-                np.max(
-                    model.predict_proba(row)[0]
-                )
-            )
-        except Exception:
-            pass
-
-    contributions = []
+    feature_names = list(X.columns)
 
     try:
-        import shap
+        explainer = shap.TreeExplainer(model)
 
-        background = X
-
-        if len(background) > 200:
-            background = background.sample(
-                200,
-                random_state=42,
-            )
-
-        explainer = shap.Explainer(
-            model,
-            background,
+        raw_values = _get_shap_values(
+            explainer,
+            X_row,
         )
 
-        explanation = explainer(row)
-        values = np.asarray(
-            explanation.values
-        )[0]
+        values = _normalise_shap_values(
+            raw_values,
+            len(X_row),
+            len(feature_names),
+        )
 
-        if values.ndim > 1:
-            values = np.mean(
-                np.abs(values),
-                axis=-1,
-            )
+        contributions = values[0]
 
-        for feature, value, contribution in zip(
-            X.columns,
-            row.iloc[0],
-            values,
-        ):
-            contributions.append(
+        order = np.argsort(
+            np.abs(contributions)
+        )[::-1]
+
+        prediction = model.predict(X_row)[0]
+
+        probability = None
+
+        if hasattr(model, "predict_proba"):
+            try:
+                probability = float(
+                    model.predict_proba(X_row)[0][1]
+                )
+            except Exception:
+                probability = None
+
+        return {
+            "index": int(index),
+            "prediction": int(prediction),
+            "probability": probability,
+            "method": "SHAP",
+            "contributions": [
                 {
-                    "feature": feature,
-                    "value": _native(value),
+                    "feature": feature_names[i],
+                    "value": X_row.iloc[0][feature_names[i]],
                     "contribution": float(
-                        contribution
+                        contributions[i]
                     ),
                 }
-            )
-
-        contributions.sort(
-            key=lambda item: abs(
-                item["contribution"]
-            ),
-            reverse=True,
-        )
-
-        method = "SHAP"
+                for i in order
+            ],
+        }
 
     except Exception:
-        method = "prediction_only"
 
-    return {
-        "index": index,
-        "prediction": _native(prediction),
-        "probability": probability,
-        "method": method,
-        "contributions": contributions,
-    }
+        prediction = model.predict(X_row)[0]
 
+        probability = None
 
-def _native(value):
-    if isinstance(value, np.integer):
-        return int(value)
+        if hasattr(model, "predict_proba"):
+            try:
+                probability = float(
+                    model.predict_proba(X_row)[0][1]
+                )
+            except Exception:
+                probability = None
 
-    if isinstance(value, np.floating):
-        return float(value)
-
-    if isinstance(value, np.bool_):
-        return bool(value)
-
-    return value
+        return {
+            "index": int(index),
+            "prediction": int(prediction),
+            "probability": probability,
+            "method": "fallback",
+            "contributions": [
+                {
+                    "feature": feature,
+                    "value": X_row.iloc[0][feature],
+                    "contribution": 0.0,
+                }
+                for feature in feature_names
+            ],
+        }
+# Compatibility aliases used by the pipeline.
+global_feature_importance = global_explanation
