@@ -12,7 +12,6 @@ import Counterfactual from "./components/Counterfactual";
 import ConfusionMatrix from "./components/ConfusionMatrix";
 
 import type { Report } from "./components/types";
-
 import "./styles.css";
 
 function App() {
