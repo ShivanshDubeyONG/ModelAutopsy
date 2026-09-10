@@ -2,7 +2,6 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
-  ChevronRight,
   Crosshair,
   Database,
   Fingerprint,

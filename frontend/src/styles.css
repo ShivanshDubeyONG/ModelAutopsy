@@ -4850,3 +4850,309 @@ body {
     font-size: 32px;
   }
 }
+
+/* =========================================================
+   FINAL REPORT HERO CLEANUP
+   ========================================================= */
+
+/* Remove the redundant output navigation completely */
+.ma-output-nav {
+  display: none !important;
+}
+
+
+/* ---------------------------------------------------------
+   HERO
+   --------------------------------------------------------- */
+
+.ma-hero {
+  padding-top: 64px;
+}
+
+.ma-hero-title-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  align-items: end;
+  gap: 64px;
+
+  margin-top: 20px;
+}
+
+.ma-hero-title-row h1 {
+  margin: 0;
+
+  font-family: Inter, Arial, sans-serif;
+  font-size: clamp(52px, 6vw, 82px);
+  font-weight: 700;
+  line-height: 0.92;
+  letter-spacing: -0.065em;
+}
+
+.ma-hero-title-row p {
+  margin: 18px 0 0;
+
+  color: var(--muted);
+
+  font-family: Inter, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+
+/* ---------------------------------------------------------
+   MODEL HEALTH
+   --------------------------------------------------------- */
+
+.ma-health {
+  align-self: end;
+
+  min-height: 155px;
+
+  padding: 20px 0 6px 28px;
+
+  border: 0;
+  border-left: 1px solid var(--border);
+
+  background: transparent;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.ma-health-label {
+  color: var(--dim);
+
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.ma-health-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+
+  margin-top: 8px;
+
+  color: var(--text);
+
+  font-family: Inter, Arial, sans-serif;
+  font-size: 68px;
+  font-weight: 600;
+  line-height: 0.9;
+  letter-spacing: -0.065em;
+}
+
+.ma-health-value small {
+  color: var(--dim);
+
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.ma-health-status {
+  margin-top: 10px;
+
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ma-health-track {
+  width: 190px;
+  height: 3px;
+
+  margin-top: 14px;
+
+  background: var(--surface-3);
+}
+
+.ma-health-track i {
+  display: block;
+
+  height: 100%;
+}
+
+
+/* Health states */
+
+.ma-health.healthy .ma-health-status {
+  color: var(--green);
+}
+
+.ma-health.healthy .ma-health-track i {
+  background: var(--green);
+}
+
+.ma-health.watch .ma-health-status {
+  color: var(--yellow);
+}
+
+.ma-health.watch .ma-health-track i {
+  background: var(--yellow);
+}
+
+.ma-health.risk .ma-health-status {
+  color: var(--red);
+}
+
+.ma-health.risk .ma-health-track i {
+  background: var(--red);
+}
+
+.ma-health.critical .ma-health-status {
+  color: var(--red);
+}
+
+.ma-health.critical .ma-health-track i {
+  background: var(--red);
+}
+
+
+/* ---------------------------------------------------------
+   META STRIP
+   --------------------------------------------------------- */
+
+.ma-meta {
+  margin-top: 42px;
+}
+
+
+/* ---------------------------------------------------------
+   OUTPUT CONTENT
+   --------------------------------------------------------- */
+
+.ma-output-list {
+  margin-top: 52px;
+}
+
+.ma-output {
+  scroll-margin-top: 90px;
+}
+
+.ma-output-heading {
+  padding-top: 6px;
+}
+
+
+/* ---------------------------------------------------------
+   TYPOGRAPHY — READABLE, NOT TINY
+   --------------------------------------------------------- */
+
+.ma-section-kicker {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+}
+
+.ma-output-heading h2 {
+  font-size: 36px;
+}
+
+.ma-output-heading p {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ma-card-heading h3 {
+  font-size: 17px;
+}
+
+.ma-card-heading > div > span {
+  font-size: 9px;
+}
+
+.ma-finding-type {
+  font-size: 9px;
+}
+
+.ma-finding strong {
+  font-size: 13px;
+}
+
+.ma-finding p {
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.ma-feature-top strong {
+  font-size: 11px;
+}
+
+.ma-feature-top b {
+  font-size: 10px;
+}
+
+.ma-cohort-condition {
+  font-size: 11px;
+}
+
+.ma-cohort-bottom span {
+  font-size: 8px;
+}
+
+.ma-cohort-bottom b {
+  font-size: 10px;
+}
+
+.ma-contribution-info strong {
+  font-size: 11px;
+}
+
+.ma-contribution-info span {
+  font-size: 9px;
+}
+
+.ma-contribution > strong {
+  font-size: 10px;
+}
+
+
+/* ---------------------------------------------------------
+   RESPONSIVE
+   --------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .ma-hero-title-row {
+    grid-template-columns: 1fr;
+    gap: 34px;
+  }
+
+  .ma-health {
+    width: 100%;
+
+    padding: 22px 0 0;
+
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .ma-health-track {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+@media (max-width: 600px) {
+  .ma-hero {
+    padding-top: 42px;
+  }
+
+  .ma-hero-title-row h1 {
+    font-size: 50px;
+  }
+
+  .ma-health-value {
+    font-size: 58px;
+  }
+
+  .ma-output-heading h2 {
+    font-size: 30px;
+  }
+}
