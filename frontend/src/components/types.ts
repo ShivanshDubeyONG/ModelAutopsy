@@ -14,46 +14,98 @@ export type Finding = {
   type: string;
   title: string;
   description: string;
+
   evidence?: Array<{
     feature?: string;
     importance?: number;
     [key: string]: unknown;
   }>;
+
   score?: number;
 };
 
 export type ErrorSlice = {
   feature?: string;
   value?: string | number;
+
   error_rate?: number;
   baseline_error?: number;
+  error?: number;
+
   lift?: number;
   size?: number;
+
+  error_metric?: string;
+  problem_type?: string;
+
   [key: string]: unknown;
 };
 
 export type Metrics = {
-  accuracy: number;
-  precision: number;
-  recall: number;
-  f1: number;
+  problem_type?: string;
+
+  accuracy?: number;
+  precision?: number;
+  recall?: number;
+  f1?: number;
   roc_auc?: number;
-  confusion_matrix: number[][];
-  labels: Array<string | number>;
+
+  mae?: number;
+  rmse?: number;
+  r2?: number;
+  mape?: number;
+
+  confusion_matrix?: number[][];
+  labels?: Array<string | number>;
+
+  [key: string]: unknown;
 };
 
-export type Report = {
-  model: {
-    name: string;
-    problem_type: string;
-  };
+export type FeatureEvidence = {
+  method?: string;
+  features?: FeatureImportance[];
+  error?: string;
+  [key: string]: unknown;
+};
 
-  dataset: {
-    samples: number;
-    features: number;
-    feature_names: string[];
-    target: string;
-  };
+export type RepresentativeCase = {
+  index: number;
+  prediction: unknown;
+  probability?: number | null;
+  method?: string;
+
+  actual?: unknown;
+
+  features?: unknown;
+
+  contributions?: Contribution[];
+
+  [key: string]: unknown;
+};
+
+export type Counterfactual = {
+  found: boolean;
+
+  reason?: string;
+
+  original_prediction?: unknown;
+  desired_prediction?: unknown;
+  new_prediction?: unknown;
+
+  changes?: Array<{
+    feature: string;
+    from: string | number;
+    to: string | number;
+  }>;
+
+  n_features_changed?: number;
+
+  [key: string]: unknown;
+};
+
+export type OutputReport = {
+  name: string;
+  problem_type: string;
 
   health_score: number;
 
@@ -61,34 +113,40 @@ export type Report = {
 
   error_analysis: ErrorSlice[];
 
-  feature_importance: {
-    method: string;
-    features: FeatureImportance[];
-    error?: string;
-  };
+  feature_importance: FeatureEvidence;
 
-  representative_case: {
-    index: number;
-    prediction: number;
-    probability: number | null;
-    method: string;
-    contributions: Contribution[];
-  };
+  representative_case: RepresentativeCase;
 
-  counterfactual: {
-    found: boolean;
-    original_prediction: number;
-    desired_prediction: number;
-    new_prediction?: number;
-
-    changes?: Array<{
-      feature: string;
-      from: string | number;
-      to: string | number;
-    }>;
-
-    n_features_changed?: number;
-  };
+  counterfactual: Counterfactual;
 
   findings: Finding[];
+};
+
+export type Report = {
+  model: {
+    name: string;
+    problem_type: string;
+    n_outputs?: number;
+  };
+
+  dataset: {
+    samples: number;
+    features: number;
+    feature_names: string[];
+
+    target?: string;
+    targets?: string[];
+  };
+
+  health_score: number;
+
+  outputs?: OutputReport[];
+
+  // Legacy single-output compatibility.
+  metrics?: Metrics;
+  error_analysis?: ErrorSlice[];
+  feature_importance?: FeatureEvidence;
+  representative_case?: RepresentativeCase;
+  counterfactual?: Counterfactual;
+  findings?: Finding[];
 };

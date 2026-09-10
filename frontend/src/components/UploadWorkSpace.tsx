@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+
 import {
   ArrowUpRight,
   Check,
@@ -18,18 +19,42 @@ function UploadWorkspace({
   onReport,
   onLogout,
 }: UploadWorkspaceProps) {
-  const modelInputRef = useRef<HTMLInputElement>(null);
-  const datasetInputRef = useRef<HTMLInputElement>(null);
+  const modelInputRef =
+    useRef<HTMLInputElement>(null);
 
-  const [modelFile, setModelFile] = useState<File | null>(null);
-  const [datasetFile, setDatasetFile] = useState<File | null>(null);
-  const [targetColumn, setTargetColumn] = useState("approved");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const datasetInputRef =
+    useRef<HTMLInputElement>(null);
+
+  const [modelFile, setModelFile] =
+    useState<File | null>(null);
+
+  const [datasetFile, setDatasetFile] =
+    useState<File | null>(null);
+
+  const [targetColumn, setTargetColumn] =
+    useState("approved");
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const targets = targetColumn
+    .split(",")
+    .map((target) => target.trim())
+    .filter(Boolean);
 
   const runAutopsy = async () => {
-    if (!modelFile || !datasetFile || !targetColumn.trim()) {
-      setError("Upload a model, evaluation dataset, and target column.");
+    if (
+      !modelFile ||
+      !datasetFile ||
+      !targetColumn.trim()
+    ) {
+      setError(
+        "Upload a model, evaluation dataset, and at least one target output.",
+      );
+
       return;
     }
 
@@ -39,20 +64,39 @@ function UploadWorkspace({
     try {
       const formData = new FormData();
 
-      formData.append("model", modelFile);
-      formData.append("dataset", datasetFile);
-      formData.append("target_column", targetColumn.trim());
+      formData.append(
+        "model",
+        modelFile,
+      );
 
-      const response = await fetch("http://127.0.0.1:8000/api/analyze", {
-        method: "POST",
-        body: formData,
-      });
+      formData.append(
+        "dataset",
+        datasetFile,
+      );
 
-      const result = await response.json();
+      formData.append(
+        "target_column",
+        targetColumn.trim(),
+      );
 
-      if (!response.ok || !result.success) {
+      const response = await fetch(
+        "http://127.0.0.1:8000/api/analyze",
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      const result =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !result.success
+      ) {
         throw new Error(
-          result.error || "Autopsy analysis failed."
+          result.error ||
+            "Autopsy analysis failed.",
         );
       }
 
@@ -61,7 +105,7 @@ function UploadWorkspace({
       setError(
         err instanceof Error
           ? err.message
-          : "Something went wrong while running the autopsy."
+          : "Something went wrong while running the autopsy.",
       );
     } finally {
       setLoading(false);
@@ -90,11 +134,16 @@ function UploadWorkspace({
         <button
           className="brand"
           type="button"
-          onClick={() => window.location.reload()}
+          onClick={() =>
+            window.location.reload()
+          }
           aria-label="Model Autopsy home"
         >
           <span className="brand-mark">
-            <Fingerprint size={20} strokeWidth={1.5} />
+            <Fingerprint
+              size={20}
+              strokeWidth={1.5}
+            />
           </span>
 
           <span className="brand-text">
@@ -106,7 +155,7 @@ function UploadWorkspace({
         <div className="workspace-actions">
           <div className="engine-status">
             <i />
-            LOCAL ENGINE
+            LOCAL FORENSIC ENGINE
           </div>
 
           <button
@@ -128,18 +177,25 @@ function UploadWorkspace({
             </div>
 
             <h1>
-                Find out
-                <br />
-                <span className="hero-accent">why your model</span>
-                <br />
-                fails.
+              Find out
+              <br />
+              <span className="hero-accent">
+                why your model
+              </span>
+              <br />
+              fails.
             </h1>
 
             <p>
-                Your model made the mistake.
-                <span className="hero-description-accent">We find the evidence.</span>
-                <br />
-                Upload the model. Expose its failure patterns. Trace what drove them.
+              Your model made the mistake.
+              <span className="hero-description-accent">
+                {" "}
+                We find the evidence.
+              </span>
+              <br />
+              Trace failure cohorts, feature
+              drivers, representative cases,
+              and model behavior.
             </p>
           </div>
 
@@ -149,18 +205,23 @@ function UploadWorkspace({
         <section className="workspace-grid">
           <div className="workspace-card">
             <div className="workspace-card-heading">
-              <span className="step-number">01</span>
+              <span className="step-number">
+                01
+              </span>
 
               <div>
                 <div className="micro-label">
                   <FileBox size={12} />
-                  MODEL
+                  MODEL ARTIFACT
                 </div>
 
-                <h2>Upload the trained model.</h2>
+                <h2>
+                  Upload the trained model.
+                </h2>
 
                 <p>
-                  Provide a serialized scikit-learn compatible model.
+                  Serialized scikit-learn
+                  compatible model.
                 </p>
               </div>
             </div>
@@ -171,7 +232,10 @@ function UploadWorkspace({
                 type="file"
                 accept=".joblib,.pkl"
                 onChange={(event) =>
-                  setModelFile(event.target.files?.[0] ?? null)
+                  setModelFile(
+                    event.target.files?.[0] ??
+                      null,
+                  )
                 }
               />
 
@@ -216,18 +280,25 @@ function UploadWorkspace({
 
           <div className="workspace-card">
             <div className="workspace-card-heading">
-              <span className="step-number">02</span>
+              <span className="step-number">
+                02
+              </span>
 
               <div>
                 <div className="micro-label">
-                  <FileSpreadsheet size={12} />
-                  EVIDENCE
+                  <FileSpreadsheet
+                    size={12}
+                  />
+                  EVIDENCE DATASET
                 </div>
 
-                <h2>Upload evaluation data.</h2>
+                <h2>
+                  Upload evaluation data.
+                </h2>
 
                 <p>
-                  Use unseen labeled data to expose model failures.
+                  Unseen data used to expose
+                  model failure patterns.
                 </p>
               </div>
             </div>
@@ -238,7 +309,10 @@ function UploadWorkspace({
                 type="file"
                 accept=".csv"
                 onChange={(event) =>
-                  setDatasetFile(event.target.files?.[0] ?? null)
+                  setDatasetFile(
+                    event.target.files?.[0] ??
+                      null,
+                  )
                 }
               />
 
@@ -246,7 +320,9 @@ function UploadWorkspace({
                 {datasetFile ? (
                   <Check size={18} />
                 ) : (
-                  <FileSpreadsheet size={18} />
+                  <FileSpreadsheet
+                    size={18}
+                  />
                 )}
               </div>
 
@@ -282,19 +358,26 @@ function UploadWorkspace({
           </div>
         </section>
 
-        <section className="configuration-card">
+        <section className="configuration-card autopsy-config">
           <div>
             <div className="micro-label">
               <Fingerprint size={12} />
-              AUTOPSY
+              INVESTIGATION TARGETS
             </div>
 
-            <h2>Configure the investigation.</h2>
+            <h2>
+              What outputs should we autopsy?
+            </h2>
+
+            <p className="config-description">
+              Enter one target or multiple
+              comma-separated outputs.
+            </p>
           </div>
 
           <div className="target-control">
             <label htmlFor="target-column">
-              TARGET COLUMN
+              TARGET OUTPUT(S)
             </label>
 
             <input
@@ -302,10 +385,22 @@ function UploadWorkspace({
               type="text"
               value={targetColumn}
               onChange={(event) =>
-                setTargetColumn(event.target.value)
+                setTargetColumn(
+                  event.target.value,
+                )
               }
-              placeholder="e.g. approved"
+              placeholder="Reference_Parameter, Validity_Label"
             />
+
+            {targets.length > 0 && (
+              <div className="target-chips">
+                {targets.map((target) => (
+                  <span key={target}>
+                    {target}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 
@@ -319,7 +414,9 @@ function UploadWorkspace({
           <div className="workspace-meta">
             <span>PRIVATE</span>
             <span>LOCAL</span>
-            <span>NO TRAINING DATA REQUIRED</span>
+            <span>
+              MULTI-OUTPUT READY
+            </span>
           </div>
 
           <button
@@ -349,4 +446,3 @@ function UploadWorkspace({
 }
 
 export default UploadWorkspace;
-

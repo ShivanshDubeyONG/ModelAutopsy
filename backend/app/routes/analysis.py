@@ -18,6 +18,39 @@ UPLOAD_DIR.mkdir(
 )
 
 
+def _parse_target_columns(
+    raw_target_column: str,
+) -> str | list[str]:
+    """
+    Accept either:
+
+        approved
+
+    or:
+
+        Reference_Parameter, Validity_Label
+
+    A single target remains a string for backward compatibility.
+    Multiple targets become a list.
+    """
+
+    targets = [
+        value.strip()
+        for value in raw_target_column.split(",")
+        if value.strip()
+    ]
+
+    if not targets:
+        raise ValueError(
+            "At least one target column is required."
+        )
+
+    if len(targets) == 1:
+        return targets[0]
+
+    return targets
+
+
 @router.post("/analyze")
 async def analyze(
     model: UploadFile = File(...),
@@ -49,6 +82,16 @@ async def analyze(
             "error": "Dataset must be a CSV file.",
         }
 
+    try:
+        target_spec = _parse_target_columns(
+            target_column
+        )
+    except ValueError as exc:
+        return {
+            "success": False,
+            "error": str(exc),
+        }
+
     model_path = (
         UPLOAD_DIR
         / f"{uuid4().hex}{model_extension}"
@@ -71,7 +114,7 @@ async def analyze(
         report = run_autopsy(
             model_path,
             dataset_path,
-            target_column,
+            target_spec,
         )
 
         return {
