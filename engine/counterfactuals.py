@@ -10,6 +10,30 @@ def find_counterfactual(
     index: int,
     max_changes: int = 3,
 ) -> dict:
+    """
+    Find a simple counterfactual for a binary classification model.
+
+    Multi-output models are intentionally rejected here because a
+    counterfactual must have a clearly defined target output.
+    """
+
+    # Multi-output models need output-specific counterfactual logic.
+    if hasattr(model, "estimators_"):
+        estimators = getattr(
+            model,
+            "estimators_",
+            None,
+        )
+
+        if estimators is not None:
+            return {
+                "found": False,
+                "reason": (
+                    "Counterfactual search for multi-output "
+                    "models is not implemented yet."
+                ),
+            }
+
     if not hasattr(model, "predict_proba"):
         return {
             "found": False,
@@ -29,6 +53,17 @@ def find_counterfactual(
             ),
         }
 
+    if len(X) == 0:
+        return {
+            "found": False,
+            "reason": "Dataset contains no rows.",
+        }
+
+    index = max(
+        0,
+        min(index, len(X) - 1),
+    )
+
     original = X.iloc[[index]].copy()
 
     original_prediction = model.predict(
@@ -41,132 +76,145 @@ def find_counterfactual(
         else classes[1]
     )
 
-    candidates = {}
+    try:
+        original_probability = float(
+            model.predict_proba(original)[0][
+                list(classes).index(
+                    original_prediction
+                )
+            ]
+        )
+    except Exception:
+        original_probability = None
+
+    best = original.copy()
+
+    changes = []
 
     for column in X.columns:
         series = X[column]
 
+        # -----------------------------------------------------
+        # Numeric feature
+        # -----------------------------------------------------
+
         if pd.api.types.is_numeric_dtype(series):
-            candidates[column] = sorted(
-                set(
-                    float(series.quantile(q))
-                    for q in np.linspace(
-                        0,
-                        1,
-                        7,
-                    )
+            candidates = (
+                series.quantile(
+                    [0.1, 0.25, 0.5, 0.75, 0.9]
                 )
+                .drop_duplicates()
+                .tolist()
             )
+
+        # -----------------------------------------------------
+        # Categorical feature
+        # -----------------------------------------------------
+
         else:
-            candidates[column] = list(
-                series.dropna().unique()
+            candidates = (
+                series.dropna()
+                .astype(str)
+                .value_counts()
+                .head(5)
+                .index
+                .tolist()
             )
 
-    current = original.copy()
-    changes = {}
+        current_value = original.iloc[0][column]
 
-    for _ in range(max_changes):
-        if model.predict(current)[0] == desired:
-            break
+        best_candidate = None
+        best_probability = None
 
-        current_probability = _desired_probability(
-            model,
-            current,
-            desired,
-        )
-
-        best_gain = 0
-        best_feature = None
-        best_value = None
-
-        for column in X.columns:
-            if column in changes:
+        for candidate in candidates:
+            if candidate == current_value:
                 continue
 
-            original_value = current.iloc[0][
-                column
-            ]
+            candidate_row = original.copy()
+            candidate_row[column] = candidate
 
-            for value in candidates[column]:
-                if value == original_value:
+            try:
+                prediction = model.predict(
+                    candidate_row
+                )[0]
+
+                if prediction != desired:
                     continue
 
-                trial = current.copy()
-                trial[column] = value
+                probabilities = model.predict_proba(
+                    candidate_row
+                )[0]
 
-                probability = _desired_probability(
-                    model,
-                    trial,
-                    desired,
+                desired_probability = float(
+                    probabilities[
+                        list(classes).index(desired)
+                    ]
                 )
 
-                gain = (
-                    probability
-                    - current_probability
-                )
+                if (
+                    best_probability is None
+                    or desired_probability
+                    > best_probability
+                ):
+                    best_probability = (
+                        desired_probability
+                    )
+                    best_candidate = candidate
 
-                if gain > best_gain:
-                    best_gain = gain
-                    best_feature = column
-                    best_value = value
+            except Exception:
+                continue
 
-        if best_feature is None:
+        if best_candidate is not None:
+            best[column] = best_candidate
+
+            changes.append(
+                {
+                    "feature": column,
+                    "from": _serializable(
+                        current_value
+                    ),
+                    "to": _serializable(
+                        best_candidate
+                    ),
+                    "desired_probability": round(
+                        float(best_probability),
+                        6,
+                    ),
+                }
+            )
+
+        if len(changes) >= max_changes:
             break
 
-        current[best_feature] = best_value
-        changes[best_feature] = best_value
+    final_prediction = model.predict(best)[0]
 
-    final_prediction = model.predict(
-        current
-    )[0]
+    found = final_prediction == desired
 
     return {
-        "found": bool(
-            final_prediction == desired
-        ),
-        "original_prediction": _native(
+        "found": bool(found),
+        "original_prediction": _serializable(
             original_prediction
         ),
-        "desired_prediction": _native(
+        "desired_prediction": _serializable(
             desired
         ),
-        "new_prediction": _native(
+        "original_probability": (
+            round(original_probability, 6)
+            if original_probability is not None
+            else None
+        ),
+        "changes": changes,
+        "final_prediction": _serializable(
             final_prediction
         ),
-        "changes": [
-            {
-                "feature": feature,
-                "from": _native(
-                    original.iloc[0][feature]
-                ),
-                "to": _native(value),
-            }
-            for feature, value
-            in changes.items()
-        ],
-        "n_features_changed": len(changes),
     }
 
 
-def _desired_probability(
-    model,
-    X,
-    desired,
-):
-    probabilities = model.predict_proba(X)[0]
-    classes = list(model.classes_)
-    index = classes.index(desired)
-    return float(probabilities[index])
+def _serializable(value):
+    if isinstance(value, np.generic):
+        return value.item()
 
-
-def _native(value):
-    if isinstance(value, np.integer):
-        return int(value)
-
-    if isinstance(value, np.floating):
-        return float(value)
-
-    if isinstance(value, np.bool_):
-        return bool(value)
+    if isinstance(value, np.ndarray):
+        return value.tolist()
 
     return value

@@ -1,28 +1,39 @@
 from pathlib import Path
-from typing import Any
 
 import joblib
 
+from backend.core.model_bundle import (
+    MixedOutputModel,
+    load_model_bundle,
+)
 
-SUPPORTED_EXTENSIONS = {".joblib", ".pkl"}
 
+def load_model(
+    model_path: str | Path,
+):
+    """
+    Load a supported model artifact.
 
-def load_model(model_path: str | Path) -> Any:
-    path = Path(model_path)
+    Supports:
+        - normal sklearn/joblib models
+        - Model Autopsy mixed-output bundles
+    """
 
-    if not path.exists():
-        raise FileNotFoundError(f"Model file not found: {path}")
+    model_path = Path(model_path)
 
-    if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
-        raise ValueError(
-            "Unsupported model format. Use .joblib or .pkl."
+    if not model_path.exists():
+        raise FileNotFoundError(
+            f"Model file not found: {model_path}"
         )
 
-    model = joblib.load(path)
+    loaded = joblib.load(model_path)
 
-    if not hasattr(model, "predict"):
-        raise ValueError(
-            "The uploaded object does not expose predict()."
+    if (
+        isinstance(loaded, dict)
+        and loaded.get("type") == "mixed_output"
+    ):
+        return load_model_bundle(
+            model_path
         )
 
-    return model
+    return loaded
