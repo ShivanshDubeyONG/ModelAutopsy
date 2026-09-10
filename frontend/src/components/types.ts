@@ -70,38 +70,49 @@ export type FeatureEvidence = {
 
 export type RepresentativeCase = {
   index: number;
-  prediction: unknown;
-  probability?: number | null;
-  method?: string;
 
   actual?: unknown;
 
-  features?: unknown;
+  prediction: unknown;
 
-  contributions?: Contribution[];
+  probability?: number | null;
+
+  probability_label?: unknown;
+
+  method?: string;
+
+  features?: Record<
+    string,
+    number
+  >;
+
+  contributions?: Array<{
+    feature: string;
+    value: string | number | boolean | null;
+    contribution: number;
+  }>;
 
   [key: string]: unknown;
 };
 
-export type Counterfactual = {
+export interface Counterfactual {
   found: boolean;
 
-  reason?: string;
+  original_prediction?: string | number;
+  final_prediction?: string | number;
+  desired_prediction?: string | number;
 
-  original_prediction?: unknown;
-  desired_prediction?: unknown;
-  new_prediction?: unknown;
+  desired_probability?: number;
 
-  changes?: Array<{
+  changes: {
     feature: string;
     from: string | number;
     to: string | number;
-  }>;
+    desired_probability?: number;
+  }[];
 
-  n_features_changed?: number;
-
-  [key: string]: unknown;
-};
+  reason?: string;
+}
 
 export type OutputReport = {
   name: string;

@@ -332,38 +332,26 @@ def _analyse_output(
         X,
         local_index,
         output_index=output_index,
+        actual=y[local_index],
     )
 
     # =========================================================
     # COUNTERFACTUAL
     # =========================================================
 
-    if (
-        problem_type == "classification"
-        and output_index is None
-    ):
+    if problem_type == "classification":
         counterfactual = find_counterfactual(
             model,
             X,
             local_index,
+            output_index=output_index,
         )
-
-    elif problem_type == "classification":
-        counterfactual = {
-            "found": False,
-            "reason": (
-                "Output-specific counterfactual "
-                "search for multi-output models "
-                "is not implemented yet."
-            ),
-        }
-
     else:
         counterfactual = {
             "found": False,
             "reason": (
-                "Regression counterfactual search "
-                "is not implemented yet."
+                "Counterfactual search is currently "
+                "available for classification outputs."
             ),
         }
 

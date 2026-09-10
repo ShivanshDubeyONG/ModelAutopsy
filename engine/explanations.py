@@ -11,7 +11,6 @@ def _select_output_model(
     Select the estimator responsible for one output.
     """
 
-    # Model Autopsy mixed-output bundle
     if output_index is not None:
         output_names = getattr(
             model,
@@ -20,23 +19,14 @@ def _select_output_model(
         )
 
         if output_names is not None:
-            if (
-                0 <= output_index
-                < len(output_names)
-            ):
-                output_name = output_names[
-                    output_index
-                ]
+            if 0 <= output_index < len(output_names):
+                output_name = output_names[output_index]
 
-                if hasattr(
-                    model,
-                    "get_output_model",
-                ):
+                if hasattr(model, "get_output_model"):
                     return model.get_output_model(
                         output_name
                     )
 
-    # sklearn multi-output estimators
     if output_index is not None:
         estimators = getattr(
             model,
@@ -46,9 +36,7 @@ def _select_output_model(
 
         if estimators is not None:
             try:
-                return estimators[
-                    output_index
-                ]
+                return estimators[output_index]
             except (
                 IndexError,
                 TypeError,
@@ -57,11 +45,8 @@ def _select_output_model(
 
     return model
 
-def _to_serializable(value: Any):
-    """
-    Convert numpy/scalar values into JSON-safe Python values.
-    """
 
+def _to_serializable(value: Any):
     if isinstance(value, np.ndarray):
         return value.tolist()
 
@@ -83,36 +68,141 @@ def _to_serializable(value: Any):
     return value
 
 
-def _normalise_shap_values(
+def _global_shap_values(
     shap_values,
     n_features: int,
 ):
     """
-    Normalise common SHAP output formats into a
-    single feature x importance vector.
+    Convert common SHAP formats into one
+    global feature-importance vector.
     """
 
     if isinstance(shap_values, list):
         if not shap_values:
             return None
 
-        # Classification commonly returns one array per class.
-        shap_values = shap_values[-1]
+        arrays = [
+            np.asarray(value)
+            for value in shap_values
+        ]
 
-    values = np.asarray(shap_values)
+        processed = []
 
-    if values.ndim == 3:
-        # samples x features x outputs
-        values = values[:, :, -1]
+        for array in arrays:
+            if array.ndim == 2:
+                processed.append(
+                    np.abs(array).mean(axis=0)
+                )
 
-    if values.ndim == 2:
-        values = np.abs(values).mean(axis=0)
+        if not processed:
+            return None
 
-    elif values.ndim == 1:
-        values = np.abs(values)
+        values = np.mean(
+            processed,
+            axis=0,
+        )
 
     else:
+        values = np.asarray(
+            shap_values
+        )
+
+        if values.ndim == 3:
+            # samples x features x outputs
+            values = np.abs(values).mean(
+                axis=(0, 2)
+            )
+
+        elif values.ndim == 2:
+            values = np.abs(values).mean(
+                axis=0
+            )
+
+        elif values.ndim == 1:
+            values = np.abs(values)
+
+        else:
+            return None
+
+    if len(values) != n_features:
         return None
+
+    return values
+
+
+def _local_shap_values(
+    shap_values,
+    class_index: int | None,
+    n_features: int,
+):
+    """
+    Extract one local SHAP vector.
+
+    Handles:
+        list[class] -> samples x features
+        samples x features
+        samples x features x classes
+    """
+
+    if isinstance(shap_values, list):
+        if not shap_values:
+            return None
+
+        if class_index is None:
+            class_index = len(shap_values) - 1
+
+        class_index = max(
+            0,
+            min(
+                class_index,
+                len(shap_values) - 1,
+            ),
+        )
+
+        values = np.asarray(
+            shap_values[class_index]
+        )
+
+        if values.ndim == 2:
+            values = values[0]
+
+        elif values.ndim == 1:
+            pass
+
+        else:
+            return None
+
+    else:
+        values = np.asarray(
+            shap_values
+        )
+
+        if values.ndim == 3:
+            if class_index is None:
+                class_index = values.shape[2] - 1
+
+            class_index = max(
+                0,
+                min(
+                    class_index,
+                    values.shape[2] - 1,
+                ),
+            )
+
+            values = values[
+                0,
+                :,
+                class_index,
+            ]
+
+        elif values.ndim == 2:
+            values = values[0]
+
+        elif values.ndim == 1:
+            pass
+
+        else:
+            return None
 
     if len(values) != n_features:
         return None
@@ -128,8 +218,10 @@ def global_explanation(
     """
     Generate global feature importance.
 
-    Uses SHAP when possible, then falls back to
-    model-native feature_importances_ or coef_.
+    Priority:
+        1. SHAP
+        2. feature_importances_
+        3. coef_
     """
 
     explanation_model = _select_output_model(
@@ -137,11 +229,9 @@ def global_explanation(
         output_index,
     )
 
-    feature_names = list(X.columns)
-
-    # ---------------------------------------------------------
-    # SHAP
-    # ---------------------------------------------------------
+    feature_names = list(
+        X.columns
+    )
 
     try:
         import shap
@@ -150,16 +240,21 @@ def global_explanation(
             explanation_model
         )
 
-        shap_values = explainer.shap_values(X)
+        shap_values = explainer.shap_values(
+            X
+        )
 
-        values = _normalise_shap_values(
+        values = _global_shap_values(
             shap_values,
             len(feature_names),
         )
 
         if values is not None:
             ranked = sorted(
-                zip(feature_names, values),
+                zip(
+                    feature_names,
+                    values,
+                ),
                 key=lambda item: abs(item[1]),
                 reverse=True,
             )
@@ -181,10 +276,6 @@ def global_explanation(
     except Exception:
         pass
 
-    # ---------------------------------------------------------
-    # Native feature importance
-    # ---------------------------------------------------------
-
     if hasattr(
         explanation_model,
         "feature_importances_",
@@ -195,7 +286,10 @@ def global_explanation(
 
         if len(values) == len(feature_names):
             ranked = sorted(
-                zip(feature_names, values),
+                zip(
+                    feature_names,
+                    values,
+                ),
                 key=lambda item: abs(item[1]),
                 reverse=True,
             )
@@ -213,10 +307,6 @@ def global_explanation(
                     for feature, importance in ranked
                 ],
             }
-
-    # ---------------------------------------------------------
-    # Linear coefficients
-    # ---------------------------------------------------------
 
     if hasattr(
         explanation_model,
@@ -236,7 +326,10 @@ def global_explanation(
 
         if len(values) == len(feature_names):
             ranked = sorted(
-                zip(feature_names, values),
+                zip(
+                    feature_names,
+                    values,
+                ),
                 key=lambda item: abs(item[1]),
                 reverse=True,
             )
@@ -259,8 +352,8 @@ def global_explanation(
         "method": "unavailable",
         "features": [],
         "reason": (
-            "No supported global explanation method "
-            "was available for this model."
+            "No supported global explanation "
+            "method was available."
         ),
     }
 
@@ -270,22 +363,34 @@ def local_explanation(
     X,
     index: int,
     output_index: int | None = None,
+    actual=None,
 ) -> dict:
     """
     Explain one representative prediction.
+
+    The returned feature data contains BOTH:
+        value        -> actual feature value
+        contribution -> SHAP contribution
     """
 
     if len(X) == 0:
         return {
             "index": 0,
+            "actual": _to_serializable(actual),
             "prediction": None,
+            "probability": None,
+            "probability_label": None,
             "features": {},
+            "contributions": [],
             "method": "unavailable",
         }
 
     index = max(
         0,
-        min(index, len(X) - 1),
+        min(
+            index,
+            len(X) - 1,
+        ),
     )
 
     row = X.iloc[[index]]
@@ -305,17 +410,21 @@ def local_explanation(
         )
 
         prediction = _to_serializable(
-            np.asarray(raw_prediction).reshape(-1)[0]
+            np.asarray(
+                raw_prediction
+            ).reshape(-1)[0]
         )
 
     except Exception:
         prediction = None
 
     # ---------------------------------------------------------
-    # Probability for binary classification
+    # Probability
     # ---------------------------------------------------------
 
     probability = None
+    probability_label = None
+    class_index = None
 
     if hasattr(
         explanation_model,
@@ -323,22 +432,45 @@ def local_explanation(
     ):
         try:
             probabilities = np.asarray(
-                explanation_model.predict_proba(row)
+                explanation_model.predict_proba(
+                    row
+                )
+            )
+
+            classes = getattr(
+                explanation_model,
+                "classes_",
+                None,
             )
 
             if (
                 probabilities.ndim == 2
-                and probabilities.shape[1] == 2
+                and probabilities.shape[1] > 0
+                and classes is not None
             ):
-                probability = float(
-                    probabilities[0][1]
-                )
+                classes = list(classes)
+
+                if prediction in classes:
+                    class_index = classes.index(
+                        prediction
+                    )
+
+                    probability = float(
+                        probabilities[
+                            0,
+                            class_index,
+                        ]
+                    )
+
+                    probability_label = _to_serializable(
+                        prediction
+                    )
 
         except Exception:
-            probability = None
+            pass
 
     # ---------------------------------------------------------
-    # SHAP local explanation
+    # SHAP
     # ---------------------------------------------------------
 
     try:
@@ -352,54 +484,70 @@ def local_explanation(
             row
         )
 
-        if isinstance(
+        values = _local_shap_values(
             shap_values,
-            list,
-        ):
-            shap_values = shap_values[-1]
-
-        values = np.asarray(
-            shap_values
+            class_index,
+            len(X.columns),
         )
 
-        if values.ndim == 3:
-            values = values[0, :, -1]
+        if values is not None:
+            contributions = []
 
-        elif values.ndim == 2:
-            values = values[0]
+            for feature, contribution in zip(
+                X.columns,
+                values,
+            ):
+                contributions.append(
+                    {
+                        "feature": feature,
+                        "value": _to_serializable(
+                            row.iloc[0][feature]
+                        ),
+                        "contribution": round(
+                            float(contribution),
+                            6,
+                        ),
+                    }
+                )
 
-        if len(values) == len(X.columns):
-            feature_values = {
-                feature: round(
-                    float(value),
-                    6,
-                )
-                for feature, value in zip(
-                    X.columns,
-                    values,
-                )
-            }
+            contributions.sort(
+                key=lambda item: abs(
+                    item["contribution"]
+                ),
+                reverse=True,
+            )
 
             return {
                 "index": index,
+                "actual": _to_serializable(
+                    actual
+                ),
                 "prediction": prediction,
                 "probability": probability,
-                "features": feature_values,
+                "probability_label": probability_label,
+                "features": {
+                    item["feature"]: item[
+                        "contribution"
+                    ]
+                    for item in contributions
+                },
+                "contributions": contributions,
                 "method": "SHAP",
             }
 
     except Exception:
         pass
 
-    # ---------------------------------------------------------
-    # Native fallback
-    # ---------------------------------------------------------
-
     return {
         "index": index,
+        "actual": _to_serializable(
+            actual
+        ),
         "prediction": prediction,
         "probability": probability,
+        "probability_label": probability_label,
         "features": {},
+        "contributions": [],
         "method": "unavailable",
         "reason": (
             "Local explanation was unavailable "
@@ -408,5 +556,4 @@ def local_explanation(
     }
 
 
-# Backward compatibility with older imports.
 global_feature_importance = global_explanation

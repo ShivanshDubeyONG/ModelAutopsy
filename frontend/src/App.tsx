@@ -4,7 +4,7 @@ import {
 } from "react";
 
 import Login from "./components/Login";
-import UploadWorkspace from "./components/UploadWorkspace";
+import UploadWorkspace from "./components/UploadWorkSpace";
 import OutputReport from "./components/OutputReport";
 
 import type { Report } from "./components/types";
