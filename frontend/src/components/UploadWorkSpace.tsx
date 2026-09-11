@@ -89,6 +89,7 @@ function UploadWorkspace({
 
       const result =
         await response.json();
+        console.log("AUTOPSY RESPONSE:", result);
 
       if (
         !response.ok ||

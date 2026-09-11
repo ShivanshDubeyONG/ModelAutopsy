@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+import warnings
 import numpy as np
 import pandas as pd
 
@@ -11,6 +12,19 @@ import pandas as pd
 class ModelAdapter:
     model: Any
     output_index: int | None = None
+
+    def _call_model(self, method, X):
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=(
+                    "X has feature names, but StandardScaler "
+                    "was fitted without feature names"
+                ),
+                category=UserWarning,
+            )
+
+            return method(X)
 
     @property
     def output_model(self):
@@ -51,7 +65,10 @@ class ModelAdapter:
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         array = np.asarray(
-            self.model.predict(X)
+            self._call_model(
+                self.model.predict,
+                X,
+            )
         )
 
         if (
@@ -74,7 +91,10 @@ class ModelAdapter:
             return None
 
         try:
-            raw = self.model.predict_proba(X)
+            raw = self._call_model(
+                self.model.predict_proba,
+                X,
+            )
         except Exception:
             return None
 
@@ -134,7 +154,10 @@ class ModelAdapter:
 
         try:
             array = np.asarray(
-                self.model.decision_function(X)
+                self._call_model(
+                    self.model.decision_function,
+                    X,
+                )
             )
         except Exception:
             return None
