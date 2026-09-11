@@ -336,7 +336,7 @@ def _local_sensitivity(
     adapter,
     row: pd.DataFrame,
     feature_names: list[str],
-    problem_type: str,
+    problem_type="classification",
     baseline_prediction=None,
 ):
     """
@@ -461,6 +461,7 @@ def local_explanation(
     index,
     output_index=None,
     actual=None,
+    problem_type="classification",
 ):
     if len(X) == 0:
         return {
@@ -674,8 +675,9 @@ def local_explanation(
 
     contributions = _local_sensitivity(
         adapter,
-        X,
-        index,
+        row,
+        list(X.columns),
+        problem_type,
     )
 
     if contributions is not None:

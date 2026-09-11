@@ -567,6 +567,7 @@ def _analyse_output(
         local_index,
         output_index=output_index,
         actual=y[local_index],
+        problem_type=problem_type,
     )
 
     # ---------------------------------------------------------
@@ -578,6 +579,7 @@ def _analyse_output(
         X,
         local_index,
         output_index=output_index,
+        problem_type=problem_type,
     )
 
     # ---------------------------------------------------------
