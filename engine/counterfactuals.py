@@ -459,6 +459,7 @@ def find_counterfactual(
     index,
     output_index=None,
     desired_prediction=None,
+    problem_type="classification",
 ):
     if len(X) == 0:
         return {
@@ -482,9 +483,7 @@ def find_counterfactual(
     row = X.iloc[[index]].copy()
 
     try:
-        original = adapter.predict(
-            row
-        )[0]
+        original = adapter.predict(row)[0]
     except Exception as exc:
         return {
             "found": False,
@@ -496,24 +495,59 @@ def find_counterfactual(
 
     target = desired_prediction
 
-    if target is None:
-        target = _choose_target(
-            adapter,
-            row,
-            original,
-        )
+    # ---------------------------------------------------------
+    # Regression
+    # ---------------------------------------------------------
 
-    if target is None:
-        return {
-            "found": False,
-            "original_prediction": _serializable(
-                original
-            ),
-            "reason": (
-                "No alternative target class "
-                "was available."
-            ),
-        }
+    if problem_type == "regression":
+        if target is None:
+            try:
+                predictions = adapter.predict(X)
+
+                lower = float(np.percentile(predictions, 25))
+                upper = float(np.percentile(predictions, 75))
+                current = float(original)
+
+                if current <= lower:
+                    target = upper
+                else:
+                    target = lower
+
+            except Exception:
+                return {
+                    "found": False,
+                    "original_prediction": _serializable(
+                        original
+                    ),
+                    "reason": (
+                        "Unable to determine a meaningful "
+                        "alternative regression target."
+                    ),
+                }
+
+    # ---------------------------------------------------------
+    # Classification
+    # ---------------------------------------------------------
+
+    else:
+        if target is None:
+            target = _choose_target(
+                adapter,
+                row,
+                original,
+            )
+
+        if target is None:
+            return {
+                "found": False,
+                "original_prediction": _serializable(
+                    original
+                ),
+                "reason": (
+                    "No alternative target class "
+                    "was available."
+                ),
+            }
 
     # ---------------------------------------------------------
     # One feature first
@@ -563,11 +597,40 @@ def find_counterfactual(
     changes = []
 
     for change in result["changes"]:
+        old_value = change["from"]
+        new_value = change["to"]
+
+        magnitude = None
+
+        if isinstance(
+            old_value,
+            (int, float, np.integer, np.floating),
+        ) and isinstance(
+            new_value,
+            (int, float, np.integer, np.floating),
+        ):
+            magnitude = abs(
+                float(new_value)
+                - float(old_value)
+            )
+
         changes.append(
             {
                 "feature": change["feature"],
-                "from": change["from"],
-                "to": change["to"],
+                "from": _serializable(
+                    old_value
+                ),
+                "to": _serializable(
+                    new_value
+                ),
+                "magnitude": (
+                    None
+                    if magnitude is None
+                    else round(
+                        magnitude,
+                        6,
+                    )
+                ),
             }
         )
 
@@ -595,7 +658,7 @@ def find_counterfactual(
         ),
         "changes": changes,
         "reason": (
-            "Prediction flipped using the smallest "
+            "Prediction changed using the smallest "
             "observed-distribution feature change found."
         ),
     }
