@@ -334,96 +334,125 @@ def global_explanation(
 
 def _local_sensitivity(
     adapter,
-    X,
-    index,
+    row: pd.DataFrame,
+    feature_names: list[str],
+    problem_type: str,
+    baseline_prediction=None,
 ):
     """
-    Model-agnostic local explanation.
+    Estimate how each feature affects the model's local prediction.
 
-    Each feature is replaced by a typical value
-    and the prediction change is measured.
+    For classification, use probability changes when predict_proba()
+    is available. This gives a meaningful local explanation instead
+    of arbitrary +/- 1 feature movements.
+
+    For regression, use prediction deltas.
     """
 
-    row = X.iloc[[index]].copy()
+    base_pred = adapter.predict(row)[0]
 
-    try:
-        baseline = adapter.predict(row)[0]
-    except Exception:
-        return None
+    probabilities = None
+    if problem_type == "classification":
+        probabilities = adapter.predict_proba(row)
 
-    contributions = []
+    results = []
 
-    for feature in X.columns:
-        modified = row.copy()
+    for feature in feature_names:
+        original = row.iloc[0][feature]
 
-        series = X[feature]
-
-        if pd.api.types.is_numeric_dtype(series):
-            replacement = float(
-                series.median()
-            )
-        else:
-            modes = series.mode()
-
-            if len(modes) == 0:
-                continue
-
-            replacement = modes.iloc[0]
-
-        try:
-            modified.loc[
-                modified.index[0],
-                feature,
-            ] = replacement
-
-            changed = adapter.predict(
-                modified
-            )[0]
-
-            if (
-                isinstance(
-                    baseline,
-                    (int, float, np.number),
-                )
-                and isinstance(
-                    changed,
-                    (int, float, np.number),
-                )
-            ):
-                contribution = float(
-                    baseline - changed
-                )
-            else:
-                contribution = (
-                    1.0
-                    if baseline != changed
-                    else 0.0
-                )
-
-            contributions.append(
-                {
-                    "feature": feature,
-                    "value": _to_serializable(
-                        row.iloc[0][feature]
-                    ),
-                    "contribution": round(
-                        contribution,
-                        6,
-                    ),
-                }
-            )
-
-        except Exception:
+        if not isinstance(
+            original,
+            (int, float, np.integer, np.floating),
+        ):
             continue
 
-    contributions.sort(
-        key=lambda item: abs(
-            item["contribution"]
-        ),
+        if not np.isfinite(float(original)):
+            continue
+
+        scale = max(abs(float(original)) * 0.05, 0.01)
+
+        plus_row = row.copy()
+        minus_row = row.copy()
+
+        plus_row.at[
+            plus_row.index[0],
+            feature,
+        ] = float(original) + scale
+
+        minus_row.at[
+            minus_row.index[0],
+            feature,
+        ] = float(original) - scale
+
+        plus_pred = adapter.predict(plus_row)[0]
+        minus_pred = adapter.predict(minus_row)[0]
+
+        if problem_type == "classification":
+            plus_proba = adapter.predict_proba(plus_row)
+            minus_proba = adapter.predict_proba(minus_row)
+
+            impact = 0.0
+
+            if (
+                probabilities is not None
+                and plus_proba is not None
+                and minus_proba is not None
+            ):
+                try:
+                    classes = adapter.classes_
+
+                    if classes is not None:
+                        target_index = list(classes).index(
+                            base_pred
+                        )
+
+                        base_prob = float(
+                            probabilities[0][target_index]
+                        )
+                        plus_prob = float(
+                            plus_proba[0][target_index]
+                        )
+                        minus_prob = float(
+                            minus_proba[0][target_index]
+                        )
+
+                        impact = (
+                            plus_prob - minus_prob
+                        ) / 2.0
+
+                except (
+                    ValueError,
+                    IndexError,
+                    TypeError,
+                ):
+                    impact = 0.0
+
+        else:
+            impact = float(
+                plus_pred - minus_pred
+            ) / 2.0
+
+        results.append(
+            {
+                "feature": feature,
+                "value": original,
+                "impact": float(impact),
+                "direction": (
+                    "increases prediction"
+                    if impact > 0
+                    else "decreases prediction"
+                    if impact < 0
+                    else "minimal effect"
+                ),
+            }
+        )
+
+    results.sort(
+        key=lambda x: abs(x["impact"]),
         reverse=True,
     )
 
-    return contributions
+    return results
 
 
 def local_explanation(
