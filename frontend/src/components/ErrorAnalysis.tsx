@@ -43,84 +43,97 @@ export default function ErrorAnalysis({
         <div className="slice-grid">
           {slices
             .slice(0, 8)
-            .map((slice, index) => (
-              <article
-                className="slice-card"
-                key={index}
-              >
-                <div className="slice-top">
-                  <span>
-                    {String(
-                      index + 1,
-                    ).padStart(2, "0")}
-                  </span>
+            .map((slice, index) => {
+              const isClassSpecific =
+                slice.feature === "target_class" ||
+                slice.kind === "class_specific";
 
-                  <b>
-                    {slice.lift !==
-                    undefined
-                      ? `${slice.lift.toFixed(
-                          1,
-                        )}× lift`
-                      : "Elevated error"}
-                  </b>
-                </div>
+              const condition =
+                slice.condition ??
+                slice.value;
 
-                <h3>
-                  {prettyName(
-                    slice.feature ||
-                      "Error cohort",
-                  )}
-                </h3>
+              const errorRate =
+                slice.error_rate ??
+                slice.error;
 
-                {slice.value !==
-                  undefined && (
+              return (
+                <article
+                  className="slice-card"
+                  key={index}
+                >
+                  <div className="slice-top">
+                    <span>
+                      {String(index + 1).padStart(
+                        2,
+                        "0",
+                      )}
+                    </span>
+
+                    <b>
+                      {slice.lift !== undefined
+                        ? `${slice.lift.toFixed(
+                            1,
+                          )}× lift`
+                        : "Elevated error"}
+                    </b>
+                  </div>
+
+                  <h3>
+                    {isClassSpecific
+                      ? "Target Class"
+                      : prettyName(
+                          slice.feature ||
+                            "Error cohort",
+                        )}
+                  </h3>
+
                   <p>
-                    {String(
-                      slice.value,
-                    )}
+                    {condition !== undefined
+                      ? String(condition)
+                      : "Elevated-error subgroup"}
                   </p>
-                )}
 
-                <div className="slice-stats">
-                  <div>
-                    <span>
-                      ERROR RATE
-                    </span>
-
-                    <strong>
-                      {formatPercent(
-                        slice.error_rate,
-                      )}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>
-                      BASELINE
-                    </span>
-
-                    <strong>
-                      {formatPercent(
-                        slice.baseline_error,
-                      )}
-                    </strong>
-                  </div>
-
-                  {slice.size !==
-                    undefined && (
+                  <div className="slice-stats">
                     <div>
                       <span>
-                        ROWS
+                        ERROR RATE
                       </span>
 
                       <strong>
-                        {slice.size}
+                        {formatPercent(
+                          errorRate,
+                        )}
                       </strong>
                     </div>
-                  )}
-                </div>
-              </article>
-            ))}
+
+                    <div>
+                      <span>
+                        BASELINE
+                      </span>
+
+                      <strong>
+                        {formatPercent(
+                          slice.baseline_error,
+                        )}
+                      </strong>
+                    </div>
+
+                    {slice.size !==
+                      undefined && (
+                      <div>
+                        <span>
+                          ROWS
+                        </span>
+
+                        <strong>
+                          {slice.size}
+                        </strong>
+                      </div>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
         </div>
       ) : (
         <div className="empty-state">
