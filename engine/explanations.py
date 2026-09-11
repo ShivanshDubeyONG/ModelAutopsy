@@ -437,6 +437,7 @@ def _local_sensitivity(
                 "feature": feature,
                 "value": original,
                 "impact": float(impact),
+                "contribution": float(impact),
                 "direction": (
                     "increases prediction"
                     if impact > 0
