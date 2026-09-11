@@ -1,6 +1,7 @@
 from typing import Any
 
 import numpy as np
+
 from sklearn.metrics import (
     accuracy_score,
     confusion_matrix,
@@ -19,21 +20,61 @@ def infer_problem_type(
     y_pred: Any,
 ) -> str:
     """
-    Infer whether the output is classification or regression.
+    Infer classification vs regression.
 
-    Classification is preferred when the target is non-numeric or
-    has a small number of unique values. Numeric targets with many
-    distinct values are treated as regression.
+    Continuous predictions are treated as strong evidence
+    for regression even when the evaluation sample happens
+    to contain few unique target values.
     """
+
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
 
-    if y_true.dtype.kind in {"O", "U", "S", "b"}:
+    if y_true.dtype.kind in {
+        "O",
+        "U",
+        "S",
+        "b",
+    }:
         return "classification"
 
-    unique_values = np.unique(y_true)
+    try:
+        pred_float = y_pred.astype(float)
 
-    if len(unique_values) <= 20:
+        continuous = np.any(
+            np.isfinite(pred_float)
+            & (
+                np.abs(
+                    pred_float
+                    - np.round(
+                        pred_float
+                    )
+                )
+                > 1e-9
+            )
+        )
+
+        if continuous:
+            return "regression"
+
+    except (
+        TypeError,
+        ValueError,
+    ):
+        return "classification"
+
+    unique_true = np.unique(
+        y_true
+    )
+
+    unique_pred = np.unique(
+        y_pred
+    )
+
+    if (
+        len(unique_true) <= 20
+        and len(unique_pred) <= 20
+    ):
         return "classification"
 
     return "regression"
@@ -68,18 +109,21 @@ def calculate_metrics(
 
 
 def _classification_metrics(
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
-    probabilities: Any | None = None,
+    y_true,
+    y_pred,
+    probabilities=None,
 ) -> dict:
+
     result = {
         "problem_type": "classification",
+
         "accuracy": float(
             accuracy_score(
                 y_true,
                 y_pred,
             )
         ),
+
         "precision": float(
             precision_score(
                 y_true,
@@ -88,6 +132,7 @@ def _classification_metrics(
                 zero_division=0,
             )
         ),
+
         "recall": float(
             recall_score(
                 y_true,
@@ -96,6 +141,7 @@ def _classification_metrics(
                 zero_division=0,
             )
         ),
+
         "f1": float(
             f1_score(
                 y_true,
@@ -104,12 +150,21 @@ def _classification_metrics(
                 zero_division=0,
             )
         ),
+
         "confusion_matrix": confusion_matrix(
             y_true,
             y_pred,
         ).tolist(),
+
         "labels": _native_list(
-            np.unique(y_true)
+            np.unique(
+                np.concatenate(
+                    [
+                        y_true,
+                        y_pred,
+                    ]
+                )
+            )
         ),
     }
 
@@ -119,9 +174,14 @@ def _classification_metrics(
                 probabilities
             )
 
+            n_classes = len(
+                np.unique(y_true)
+            )
+
             if (
                 probabilities.ndim == 2
                 and probabilities.shape[1] == 2
+                and n_classes == 2
             ):
                 result["roc_auc"] = float(
                     roc_auc_score(
@@ -129,6 +189,21 @@ def _classification_metrics(
                         probabilities[:, 1],
                     )
                 )
+
+            elif (
+                probabilities.ndim == 2
+                and probabilities.shape[1] > 2
+                and n_classes > 2
+            ):
+                result["roc_auc"] = float(
+                    roc_auc_score(
+                        y_true,
+                        probabilities,
+                        multi_class="ovr",
+                        average="weighted",
+                    )
+                )
+
         except (
             ValueError,
             TypeError,
@@ -139,9 +214,10 @@ def _classification_metrics(
 
 
 def _regression_metrics(
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
+    y_true,
+    y_pred,
 ) -> dict:
+
     y_true = y_true.astype(float)
     y_pred = y_pred.astype(float)
 
@@ -161,8 +237,13 @@ def _regression_metrics(
 
     result = {
         "problem_type": "regression",
-        "mae": float(mae),
+
+        "mae": float(
+            mae
+        ),
+
         "rmse": rmse,
+
         "r2": float(
             r2_score(
                 y_true,
@@ -174,31 +255,46 @@ def _regression_metrics(
     non_zero = y_true != 0
 
     if np.any(non_zero):
-        mape = np.mean(
-            np.abs(
-                (
-                    y_true[non_zero]
-                    - y_pred[non_zero]
-                )
-                / y_true[non_zero]
-            )
-        )
-
         result["mape"] = float(
-            mape
+            np.mean(
+                np.abs(
+                    (
+                        y_true[
+                            non_zero
+                        ]
+                        - y_pred[
+                            non_zero
+                        ]
+                    )
+                    / y_true[
+                        non_zero
+                    ]
+                )
+            )
         )
 
     return result
 
 
-def _native_list(values):
+def _native_list(
+    values,
+):
     return [
         int(v)
-        if isinstance(v, np.integer)
+        if isinstance(
+            v,
+            np.integer,
+        )
         else float(v)
-        if isinstance(v, np.floating)
+        if isinstance(
+            v,
+            np.floating,
+        )
         else bool(v)
-        if isinstance(v, np.bool_)
+        if isinstance(
+            v,
+            np.bool_,
+        )
         else v
         for v in values
     ]

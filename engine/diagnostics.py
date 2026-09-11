@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 import numpy as np
@@ -9,14 +11,25 @@ def discover_error_slices(
     y_true: Any,
     y_pred: Any,
     problem_type: str = "classification",
+    probabilities: Any | None = None,
     min_size: int = 10,
-    min_lift: float = 1.5,
+    min_lift: float = 1.35,
     max_findings: int = 8,
 ) -> list[dict]:
-    y_true = np.asarray(y_true)
-    y_pred = np.asarray(y_pred)
+
+    y_true = np.asarray(
+        y_true
+    )
+
+    y_pred = np.asarray(
+        y_pred
+    )
+
+    if len(y_true) == 0:
+        return []
 
     if problem_type == "regression":
+
         errors = np.abs(
             y_true.astype(float)
             - y_pred.astype(float)
@@ -26,113 +39,19 @@ def discover_error_slices(
             errors.mean()
         )
 
-        if baseline == 0:
+        if baseline <= 1e-12:
             return []
 
-        slices = []
-
-        for column in X.columns:
-            series = X[column]
-
-            if pd.api.types.is_numeric_dtype(
-                series
-            ):
-                if series.nunique() < 4:
-                    values = (
-                        series
-                        .dropna()
-                        .unique()
-                    )
-
-                    for value in values:
-                        mask = (
-                            series == value
-                        )
-
-                        _add_regression_slice(
-                            slices,
-                            column,
-                            f"{column} = {value}",
-                            mask,
-                            errors,
-                            baseline,
-                            min_size,
-                            min_lift,
-                        )
-
-                else:
-                    quantiles = (
-                        series
-                        .quantile(
-                            [
-                                0.0,
-                                0.25,
-                                0.5,
-                                0.75,
-                                1.0,
-                            ]
-                        )
-                        .unique()
-                    )
-
-                    for low, high in zip(
-                        quantiles[:-1],
-                        quantiles[1:],
-                    ):
-                        mask = (
-                            (series >= low)
-                            & (series <= high)
-                        )
-
-                        condition = (
-                            f"{low:.3g} ≤ "
-                            f"{column} ≤ "
-                            f"{high:.3g}"
-                        )
-
-                        _add_regression_slice(
-                            slices,
-                            column,
-                            condition,
-                            mask,
-                            errors,
-                            baseline,
-                            min_size,
-                            min_lift,
-                        )
-
-            else:
-                for value in (
-                    series
-                    .dropna()
-                    .unique()
-                ):
-                    mask = (
-                        series == value
-                    )
-
-                    _add_regression_slice(
-                        slices,
-                        column,
-                        f"{column} = {value}",
-                        mask,
-                        errors,
-                        baseline,
-                        min_size,
-                        min_lift,
-                    )
-
-        slices.sort(
-            key=lambda item: (
-                item["lift"]
-                * item["size"]
-            ),
-            reverse=True,
+        return _search_feature_slices(
+            X,
+            errors,
+            baseline,
+            "regression",
+            min_size,
+            min_lift,
+            max_findings,
         )
 
-        return slices[:max_findings]
-
-    # Classification path
     errors = (
         y_true != y_pred
     ).astype(float)
@@ -141,41 +60,99 @@ def discover_error_slices(
         errors.mean()
     )
 
-    if baseline == 0:
+    if baseline <= 1e-12:
         return []
+
+    slices = _search_feature_slices(
+        X,
+        errors,
+        baseline,
+        "classification",
+        min_size,
+        min_lift,
+        max_findings * 3,
+    )
+
+    slices.extend(
+        _class_specific_slices(
+            X,
+            y_true,
+            y_pred,
+            min_size,
+            min_lift,
+            max_findings * 2,
+        )
+    )
+
+    slices.extend(
+        _confidence_slices(
+            X,
+            errors,
+            probabilities,
+            baseline,
+            min_size,
+            min_lift,
+            max_findings * 2,
+        )
+    )
+
+    return _rank_slices(
+        slices,
+        max_findings,
+    )
+
+
+def _search_feature_slices(
+    X,
+    errors,
+    baseline,
+    problem_type,
+    min_size,
+    min_lift,
+    max_candidates,
+):
 
     slices = []
 
+    n = len(X)
+
+    min_size = max(
+        min_size,
+        int(
+            np.ceil(
+                n * 0.02
+            )
+        ),
+    )
+
     for column in X.columns:
+
         series = X[column]
 
         if pd.api.types.is_numeric_dtype(
             series
         ):
-            if series.nunique() < 4:
-                values = (
-                    series
-                    .dropna()
-                    .unique()
+
+            if (
+                series.nunique(
+                    dropna=True
                 )
-
-                for value in values:
-                    mask = (
-                        series == value
-                    )
-
-                    _add_classification_slice(
-                        slices,
-                        column,
+                < 4
+            ):
+                masks = [
+                    (
                         f"{column} = {value}",
-                        mask,
-                        errors,
-                        baseline,
-                        min_size,
-                        min_lift,
+                        series == value,
                     )
+                    for value in (
+                        series
+                        .dropna()
+                        .unique()
+                    )
+                ]
 
             else:
+
                 quantiles = (
                     series
                     .quantile(
@@ -187,147 +164,345 @@ def discover_error_slices(
                             1.0,
                         ]
                     )
-                    .unique()
+                    .drop_duplicates()
+                    .to_numpy()
                 )
 
-                for low, high in zip(
-                    quantiles[:-1],
-                    quantiles[1:],
-                ):
-                    mask = (
-                        (series >= low)
-                        & (series <= high)
+                masks = [
+                    (
+                        (
+                            f"{quantiles[i]:.3g} "
+                            f"≤ {column} "
+                            f"≤ {quantiles[i + 1]:.3g}"
+                        ),
+                        (
+                            (series >= quantiles[i])
+                            & (
+                                series
+                                <= quantiles[
+                                    i + 1
+                                ]
+                            )
+                        ),
                     )
-
-                    condition = (
-                        f"{low:.3g} ≤ "
-                        f"{column} ≤ "
-                        f"{high:.3g}"
+                    for i in range(
+                        len(quantiles) - 1
                     )
-
-                    _add_classification_slice(
-                        slices,
-                        column,
-                        condition,
-                        mask,
-                        errors,
-                        baseline,
-                        min_size,
-                        min_lift,
-                    )
+                ]
 
         else:
-            for value in (
+
+            top_values = (
                 series
                 .dropna()
-                .unique()
-            ):
-                mask = (
-                    series == value
-                )
+                .value_counts()
+                .head(8)
+                .index
+            )
 
-                _add_classification_slice(
-                    slices,
-                    column,
+            masks = [
+                (
                     f"{column} = {value}",
-                    mask,
-                    errors,
-                    baseline,
-                    min_size,
-                    min_lift,
+                    series == value,
                 )
+                for value in top_values
+            ]
 
-    slices.sort(
-        key=lambda item: (
-            item["lift"]
-            * item["size"]
+        for condition, mask in masks:
+
+            size = int(
+                mask.sum()
+            )
+
+            if size < min_size:
+                continue
+
+            local_error = float(
+                errors[mask].mean()
+            )
+
+            lift = (
+                local_error
+                / baseline
+            )
+
+            if lift < min_lift:
+                continue
+
+            slices.append(
+                _slice_record(
+                    column,
+                    condition,
+                    size,
+                    local_error,
+                    baseline,
+                    lift,
+                    problem_type,
+                )
+            )
+
+    return _rank_slices(
+        slices,
+        max_candidates,
+    )
+
+
+def _class_specific_slices(
+    X,
+    y_true,
+    y_pred,
+    min_size,
+    min_lift,
+    max_candidates,
+):
+
+    slices = []
+
+    errors = (
+        y_true != y_pred
+    )
+
+    baseline = float(
+        errors.mean()
+    )
+
+    if baseline <= 0:
+        return []
+
+    min_size = max(
+        min_size,
+        int(
+            np.ceil(
+                len(X) * 0.02
+            )
         ),
+    )
+
+    labels = pd.unique(
+        y_true
+    )
+
+    for label in labels:
+
+        mask = (
+            y_true == label
+        )
+
+        size = int(
+            mask.sum()
+        )
+
+        if size < min_size:
+            continue
+
+        class_error = float(
+            errors[mask].mean()
+        )
+
+        lift = (
+            class_error
+            / baseline
+        )
+
+        if lift < min_lift:
+            continue
+
+        slices.append(
+            {
+                "feature": "target_class",
+                "condition": (
+                    f"actual = {label}"
+                ),
+                "size": size,
+                "error_rate": class_error,
+                "baseline_error": baseline,
+                "lift": float(lift),
+                "problem_type": "classification",
+                "kind": "class_specific",
+            }
+        )
+
+    return _rank_slices(
+        slices,
+        max_candidates,
+    )
+
+
+def _confidence_slices(
+    X,
+    errors,
+    probabilities,
+    baseline,
+    min_size,
+    min_lift,
+    max_candidates,
+):
+
+    if probabilities is None:
+        return []
+
+    try:
+
+        probabilities = np.asarray(
+            probabilities
+        )
+
+        if (
+            probabilities.ndim != 2
+            or probabilities.shape[0]
+            != len(X)
+        ):
+            return []
+
+        confidence = probabilities.max(
+            axis=1
+        )
+
+    except Exception:
+        return []
+
+    slices = []
+
+    min_size = max(
+        min_size,
+        int(
+            np.ceil(
+                len(X) * 0.02
+            )
+        ),
+    )
+
+    quantiles = np.quantile(
+        confidence,
+        [
+            0.0,
+            0.25,
+            0.5,
+            0.75,
+            1.0,
+        ],
+    )
+
+    for i in range(4):
+
+        mask = (
+            confidence
+            >= quantiles[i]
+        ) & (
+            confidence
+            <= quantiles[i + 1]
+        )
+
+        size = int(
+            mask.sum()
+        )
+
+        if size < min_size:
+            continue
+
+        local_error = float(
+            errors[mask].mean()
+        )
+
+        lift = (
+            local_error
+            / baseline
+        )
+
+        if lift < min_lift:
+            continue
+
+        slices.append(
+            {
+                "feature": "prediction_confidence",
+                "condition": (
+                    f"{quantiles[i]:.1%} "
+                    f"≤ confidence ≤ "
+                    f"{quantiles[i + 1]:.1%}"
+                ),
+                "size": size,
+                "error_rate": local_error,
+                "baseline_error": baseline,
+                "lift": float(lift),
+                "problem_type": "classification",
+                "kind": "confidence",
+            }
+        )
+
+    return _rank_slices(
+        slices,
+        max_candidates,
+    )
+
+
+def _slice_record(
+    feature,
+    condition,
+    size,
+    local_error,
+    baseline,
+    lift,
+    problem_type,
+):
+
+    record = {
+        "feature": feature,
+        "condition": condition,
+        "size": size,
+        "baseline_error": baseline,
+        "lift": float(lift),
+        "problem_type": problem_type,
+    }
+
+    if problem_type == "regression":
+
+        record["error"] = (
+            local_error
+        )
+
+        record["error_metric"] = (
+            "MAE"
+        )
+
+    else:
+
+        record["error_rate"] = (
+            local_error
+        )
+
+    return record
+
+
+def _rank_slices(
+    slices,
+    limit,
+):
+
+    unique = {}
+
+    for item in slices:
+
+        key = (
+            item.get("feature"),
+            item.get("condition"),
+        )
+
+        if (
+            key not in unique
+            or item["lift"]
+            > unique[key]["lift"]
+        ):
+            unique[key] = item
+
+    return sorted(
+        unique.values(),
+        key=lambda item:
+            item["lift"]
+            * np.sqrt(
+                max(
+                    item["size"],
+                    1,
+                )
+            ),
         reverse=True,
-    )
-
-    return slices[:max_findings]
-
-
-def _add_classification_slice(
-    output,
-    feature,
-    condition,
-    mask,
-    errors,
-    baseline,
-    min_size,
-    min_lift,
-):
-    size = int(
-        mask.sum()
-    )
-
-    if size < min_size:
-        return
-
-    error_rate = float(
-        errors[mask].mean()
-    )
-
-    lift = (
-        error_rate
-        / baseline
-    )
-
-    if lift < min_lift:
-        return
-
-    output.append(
-        {
-            "feature": feature,
-            "condition": condition,
-            "size": size,
-            "error_rate": error_rate,
-            "baseline_error": baseline,
-            "lift": float(lift),
-            "problem_type": "classification",
-        }
-    )
-
-
-def _add_regression_slice(
-    output,
-    feature,
-    condition,
-    mask,
-    errors,
-    baseline,
-    min_size,
-    min_lift,
-):
-    size = int(
-        mask.sum()
-    )
-
-    if size < min_size:
-        return
-
-    mean_absolute_error = float(
-        errors[mask].mean()
-    )
-
-    lift = (
-        mean_absolute_error
-        / baseline
-    )
-
-    if lift < min_lift:
-        return
-
-    output.append(
-        {
-            "feature": feature,
-            "condition": condition,
-            "size": size,
-            "error": mean_absolute_error,
-            "baseline_error": baseline,
-            "error_metric": "MAE",
-            "lift": float(lift),
-            "problem_type": "regression",
-        }
-    )
+    )[:limit]
