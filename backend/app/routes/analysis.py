@@ -1,4 +1,5 @@
 from pathlib import Path
+import traceback
 from uuid import uuid4
 
 from fastapi import APIRouter, File, Form, UploadFile
@@ -123,10 +124,11 @@ async def analyze(
         }
 
     except Exception as exc:
+        traceback.print_exc()
         return {
             "success": False,
             "error": str(exc),
-        }
+    }
 
     finally:
         model_path.unlink(
