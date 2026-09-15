@@ -1,7 +1,5 @@
 # Model Autopsy
 
-> Forensic debugging for machine learning models.
-
 Model Autopsy investigates trained machine-learning models on
 unseen labeled data and turns model failures into evidence.
 
