@@ -13,7 +13,6 @@ Model Autopsy asks:
 - Which data cohorts are disproportionately misclassified?
 - Which features drive its decisions?
 - Why did a particular prediction happen?
-- Can the prediction be changed?
 - What evidence supports each finding?
 
 ## How it works
