@@ -271,9 +271,6 @@ def global_explanation(
         output_index=output_index,
     )
 
-    # ---------------------------------------------------------
-    # SHAP
-    # ---------------------------------------------------------
 
     result = _shap_global(
         adapter,
